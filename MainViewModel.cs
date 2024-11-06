@@ -1,13 +1,17 @@
-﻿using Google.Apis.Auth.OAuth2;
+﻿using ClosedXML.Excel;
+using Google.Apis.Auth.OAuth2;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
 using Newtonsoft.Json;
+using Npgsql;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
 
 namespace TimeCollect
@@ -33,36 +37,59 @@ namespace TimeCollect
 
         private async void RunData()
         {
-            //1. Fetch data from Google Sheets for each employee
-            var credential = await GetUserCredential();
-            var service = new SheetsService(new BaseClientService.Initializer()
+            try
             {
-                HttpClientInitializer = credential,
-                ApplicationName = "TimeCollect"
-            });
-
-            foreach (var employee in Employees)
-            {
-                var sheetNames = SheetNames.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-
-                foreach (var sheetName in sheetNames)
+                //1. Fetch data from Google Sheets for each employee
+                var credential = await GetUserCredential();
+                var service = new SheetsService(new BaseClientService.Initializer()
                 {
-                    var range = $"{sheetName}!A:Z"; //i'll edit this range later...
-                    var request = service.Spreadsheets.Values.Get(employee.SpreadsheetId, range);
-                    var response = await request.ExecuteAsync();
-                    var values = response.Values;
+                    HttpClientInitializer = credential,
+                    ApplicationName = "Application Name of Google API"
+                });
 
-                    //2. Process the fetched data (clean, export, insert) - for now, just log
-                    if (values != null && values.Count > 0)
+                var allCleanedData = new List<IList<object>>(); //List to store all cleaned data
+
+                foreach (var sheetName in SheetNames.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var sheetData = new List<IList<object>>(); // List to store data for the current sheet
+
+                    foreach (var employee in Employees)
                     {
-                        LogMessages += $"Fetched {values.Count} rows for {employee.Nickname}\n";
-                        //TODO: Implement CleanData, ExportToExcel, InsertIntoDatabase
+                        var range = $"{sheetName}!A:Z"; //TODO: edit specific range
+                        var request = service.Spreadsheets.Values.Get(employee.SpreadsheetId, range);
+                        var response = await request.ExecuteAsync();
+                        var values = response.Values;
+
+                        if (values != null && values.Count > 0)
+                        {
+                            LogMessages += $"Fetched {values.Count} rows for {employee.Nickname} from sheet {sheetName}\n";
+                            sheetData.AddRange(CleanData(values)); // Add cleaned data to the sheetData list
+                        }
+                        else
+                        {
+                            LogMessages += $"No data found for {employee.Nickname} from sheet {sheetName}\n";
+                        }
                     }
-                    else
+
+                    // Process the combined data for the current sheet
+                    if (sheetData.Count > 0)
                     {
-                        LogMessages += $"No data found for {employee.Nickname}\n";
+                        allCleanedData.AddRange(sheetData); // Add the sheet data to the main list
+                        ExportToExcel(sheetData, sheetName, $"output_{sheetName}.xlsx"); // Call ExportToExcel with sheetName
                     }
                 }
+
+                // Process all the cleaned data from all sheets combined
+                if (allCleanedData.Count > 0)
+                {
+                    ExportToExcel(allCleanedData, "AllSheets", $"output_all_sheets.xlsx");
+                    InsertIntoDatabase(allCleanedData);
+                }
+            }
+            catch (Exception ex)
+            {
+                // 5. Handle exceptions
+                MessageBox.Show($"An error occurred: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -139,5 +166,120 @@ namespace TimeCollect
             }
         }
 
+        private IList<IList<object>> CleanData(IList<IList<object>> data)
+        {
+            // Get the indices of columns to be deleted
+            // Example: Delete columns 2, 4 ,6
+            // to be edit later
+            var columnsToDelete = new List<int>() { 1, 3, 5 };
+
+            // Iterate through each row in the data
+            for (int i = 0; i < data.Count; i++)
+            {
+                //Delete columns in reverse order to avoid index issues
+                for (int j = 0; j < columnsToDelete.Count; j++)
+                {
+                    int columnIndex = columnsToDelete[i];
+                    if (columnIndex >= 0 && columnIndex < data[i].Count)
+                    {
+                        data[i].RemoveAt(columnIndex);
+                    }
+                }
+            }
+
+            return data;
+
+        }
+
+        private void ExportToExcel(IList<IList<object>> data, string sheetName, string filePath)
+        {
+            using (var workbook = new XLWorkbook())
+            {
+                var worksheet = workbook.Worksheets.Add(sheetName);
+                int row = 1;
+                foreach (var rowData in data)
+                {
+                    int col = 1;
+                    foreach (var cellData in rowData)
+                    {
+                        // Use pattern matching for type checking
+                        switch (cellData)
+                        {
+                            case string str:
+                                worksheet.Cell(row, col).Value = str;
+                                break;
+                            case int num:
+                                worksheet.Cell(row, col).Value = num;
+                                break;
+                            case float f:
+                                worksheet.Cell(row, col).Value = Math.Round(f, 2);
+                                break;
+                            // ... add more cases for other types as needed
+                            default:
+                                worksheet.Cell(row, col).Value = cellData.ToString(); // Use SetValue for general cases
+                                break;
+                        }
+                        col++;
+                    }
+                    row++;
+                }
+                workbook.SaveAs(filePath);
+            }
+        }
+
+        private void InsertIntoDatabase(IList<IList<object>> data)
+        {
+            try
+            {
+                // 1. Define your connection string
+                string connString = "Host=your_host;Database=your_database;Username=your_user;Password=your_password";
+
+                // 2. Establish a connection to the database
+                using (var conn = new NpgsqlConnection(connString))
+                {
+                    conn.Open();
+
+                    // 3. Define the SQL command
+                    using (var cmd = new NpgsqlCommand())
+                    {
+                        cmd.Connection = conn;
+
+                        //TODO: edit this later...
+                        cmd.CommandText = "INSERT INTO your_table (column1, column2, ...) VALUES (@value1, @value2, ...)";
+
+                        // 4. Add parameters and values based on table structure
+                        // Example:
+                        //TODO: edit this later...
+                        cmd.Parameters.AddWithValue("column1", NpgsqlTypes.NpgsqlDbType.Varchar);
+                        cmd.Parameters.AddWithValue("column2", NpgsqlTypes.NpgsqlDbType.Varchar);
+
+                        // 5. Iterate through the data and insert each row
+                        foreach (var rowData in data)
+                        {
+                            // Assuming rowData[0] corresponds to column 1, rowData[1] to column2, etc...
+                            cmd.Parameters["column1"].Value = rowData[0];
+                            cmd.Parameters["column2"].Value = rowData[1];
+                            // ... set values for other parameters
+
+
+                            cmd.ExecuteNonQuery();
+                        }
+
+                    }
+                }
+                // 6. Provide feedback
+                LogMessages += $"Inserted {data.Count} rows into the database.\n";
+
+            }
+            catch (Exception ex)
+            {
+                // 7. Handle exceptions
+                MessageBox.Show($"An error occurred while inserting into the database: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+
+            }
+        }
+
     }
+
 }
+
