@@ -1,4 +1,6 @@
 ﻿using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
 
 namespace TimeCollect
 {
@@ -11,6 +13,9 @@ namespace TimeCollect
         {
             InitializeComponent();
             DataContext = new MainViewModel();
+
+            //Bind the sheetNameTextBox to the SheetNames property in the view model
+            sheetNamesTextBox.SetBinding(TextBox.TextProperty, new Binding("SheetNames"));
         }
     }
 }

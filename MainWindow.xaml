@@ -38,13 +38,16 @@
             <TabItem Header="Settings">
                 <StackPanel Orientation="Vertical" Margin="10">
                     <TextBlock Text="Client ID:"/>
-                    <TextBox x:Name="clientIdTextBox" Margin="5" />
+                    <TextBox x:Name="clientIdTextBox" Margin="5" Text="{Binding ClientId, UpdateSourceTrigger=PropertyChanged}" />
 
                     <TextBlock Text="Client Secret:" />
-                    <TextBox x:Name="clientSecretTextBox" Margin="5"/>
+                    <TextBox x:Name="clientSecretTextBox" Margin="5" Text="{Binding ClientSecret, UpdateSourceTrigger=PropertyChanged}"/>
 
                     <Button x:Name="saveCredentialsButton" Content="Save Credentials" Margin="5" />
                 </StackPanel>
+            </TabItem>
+            <TabItem Header="Sheet Names">
+                <TextBox x:Name="sheetNamesTextBox"/>
             </TabItem>
         </TabControl>
     </Grid>
