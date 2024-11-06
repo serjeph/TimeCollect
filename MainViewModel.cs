@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Windows.Input;
 
 namespace TimeCollect
 {
@@ -9,14 +10,25 @@ namespace TimeCollect
 
 
         // add other properties and commands here later...
-
+        public ICommand RunDataCommand { get; set; }
+        public ICommand SaveCredentialsCommand { get; set; }
 
         public MainViewModel()
         {
             Employees = new ObservableCollection<Employee>();
+            RunDataCommand = new RelayCommand(RunData);
+            SaveCredentialsCommand = new RelayCommand(SaveCredentials);
         }
 
-        // Implement INotifyPropertyChange interface later...
+        private void RunData()
+        {
+            //TODO: Implement data processing logic here
+        }
+
+        private void SaveCredentials()
+        {
+            //TODO: Implement credential saving logic here
+        }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
