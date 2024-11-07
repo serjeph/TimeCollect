@@ -152,11 +152,19 @@ namespace TimeCollect
             //3. Serialize the ClientSecrets object to JSON
             var json = JsonConvert.SerializeObject(secrets, Formatting.Indented);
 
+            // save the JSON to the credentials file in AppData
+            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string filePath = Path.Combine(appDataPath, "TimeCollect", "credentials.json");
+
+            // Ensure the directory exists
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+
             //4. Save the JSON to the credentials file
-            File.WriteAllText(_credentialsPath, json);
+            File.WriteAllText(filePath, json);
 
             //5. Provide feedback to the user
-            LogMessages += $"Credentials saved to {_credentialsPath}";
+            LogMessages += $"Credentials saved successfully!";
+            MessageBox.Show("Credentials saved successfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
