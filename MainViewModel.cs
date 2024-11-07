@@ -39,6 +39,9 @@ namespace TimeCollect
         {
             try
             {
+                IsRunEnabled = false; //Disable the RUN button
+                IsLoading = Visibility.Visible; // Show the loading indicator
+
                 //1. Fetch data from Google Sheets for each employee
                 var credential = await GetUserCredential();
                 var service = new SheetsService(new BaseClientService.Initializer()
@@ -52,9 +55,9 @@ namespace TimeCollect
                 var sheetNames = SheetNames.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
 
                 string outputDirectory = @"D:\Documents\TimeCollect";
-                if (!Directory.Exists(outputDirectory))
+                if (!Directory.Exists(OutputDirectory))
                 {
-                    Directory.CreateDirectory(outputDirectory);
+                    Directory.CreateDirectory(OutputDirectory);
                 }
 
                 foreach (var sheetName in sheetNames)
@@ -115,6 +118,11 @@ namespace TimeCollect
             {
                 // 5. Handle exceptions
                 MessageBox.Show($"An error occurred: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                IsLoading = Visibility.Collapsed; // Hide the loading indicator
+                IsRunEnabled = true; // Re-enable the button
             }
         }
 
@@ -301,6 +309,39 @@ namespace TimeCollect
                 // 7. Handle exceptions
                 MessageBox.Show($"An error occurred while inserting into the database: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
 
+            }
+        }
+
+        private bool _isRunEnabled = true;
+        public bool IsRunEnabled
+        {
+            get => _isRunEnabled;
+            set
+            {
+                _isRunEnabled = value;
+                OnPropertyChanged(nameof(IsRunEnabled));
+            }
+        }
+
+        private Visibility _isLoading = Visibility.Collapsed;
+        public Visibility IsLoading
+        {
+            get => _isLoading;
+            set
+            {
+                _isLoading = value;
+                OnPropertyChanged(nameof(IsLoading));
+            }
+        }
+
+        private string _outputDirectory = @"D:\Documents\TimeCollect"; // Default value
+        public string OutputDirectory
+        {
+            get => _outputDirectory;
+            set
+            {
+                _outputDirectory = value;
+                OnPropertyChanged(nameof(OutputDirectory));
             }
         }
 

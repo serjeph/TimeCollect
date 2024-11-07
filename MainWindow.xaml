@@ -5,11 +5,91 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:TimeCollect"
         mc:Ignorable="d"
-        Title="TimeCollect" Height="450" Width="800">
+        Title="BPG TimeCollect" Height="450" Width="800"
+        MinHeight="1080" MinWidth="1300"
+        Closing="Window_Closing"
+        Icon="src\timecollect.ico">
+    <Window.Resources>
+        <Style TargetType="TabControl">
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+
+        <Style TargetType="TabItem">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TabItem">
+                        <Border Name="Border" BorderThickness="0,0,0,2" BorderBrush="Transparent" Margin="5,0">
+                            <ContentPresenter x:Name="ContentSite"
+                                              VerticalAlignment="Center"
+                                              HorizontalAlignment="Center"
+                                              ContentSource="Header"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="False">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="#0078D7" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="DataGrid">
+            <Setter Property="Margin" Value="10" />
+            <Setter Property="AutoGenerateColumns" Value="False" />
+            <Setter Property="HeadersVisibility" Value="Column" />
+            <Setter Property="GridLinesVisibility" Value="None" />
+            <Setter Property="RowStyle">
+                <Setter.Value>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="BorderThickness" Value="0,0,0,1" />
+                        <Setter Property="BorderBrush" Value="LightGray" />
+                    </Style>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#0078D7" />
+            <Setter Property="Foreground" Value="white" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="Margin" Value="10,5" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ProgressBar">
+            <Setter Property="Margin" Value="10,5"/>
+            <Setter Property="Height" Value="5" />
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="Margin" Value="10,5"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="BorderBrush" Value="Gray"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+    </Window.Resources>
     <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -22,32 +102,91 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <DataGrid x:Name="employeesDataGrid" Grid.Row="0" AutoGenerateColumns="False">
-                        
+                    <DataGrid x:Name="employeesDataGrid" Grid.Row="0" AutoGenerateColumns="False" ItemsSource="{Binding Employees}" IsReadOnly="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*">
+                                <DataGridTextColumn.EditingElementStyle>
+                                    <Style TargetType="TextBox">
+                                        <Setter Property="Validation.ErrorTemplate">
+                                            <Setter.Value>
+                                                <ControlTemplate>
+                                                    <DockPanel>
+                                                        <AdornedElementPlaceholder />
+                                                        <TextBlock Text="{Binding [0].ErrorContent}" Foreground="Red" FontSize="10" />
+                                                    </DockPanel>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </DataGridTextColumn.EditingElementStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Nickname" Binding="{Binding Nickname}" Width="*" />
+                            <DataGridTextColumn Header="Spreadsheet ID" Binding="{Binding SpreadsheetId}" Width="2*"/>
+                        </DataGrid.Columns>
                     </DataGrid>
 
-                    <Button x:Name="runButton" Grid.Row="1" Content="Run"/>
+                    <Button x:Name="runButton" Grid.Row="1" Content="Run" Command="{Binding RunDataCommand}" IsEnabled="{Binding IsRunEnabled}"
+                            Height="35" Width="100"/>
 
-                    <ProgressBar x:Name="progressBar" Grid.Row="2"/>
+                    <ProgressBar x:Name="progressBar" Grid.Row="2" Height="15" Margin="10,5"/>
 
-                    <TextBox x:Name="logTextBox" Grid.Row="3" IsReadOnly="True" VerticalScrollBarVisibility="Auto"/>
+                    <TextBox x:Name="logTextBox" Grid.Row="3" Grid.ColumnSpan="2" IsReadOnly="True" VerticalScrollBarVisibility="Auto" Margin="10" Height="200"/>
+
+                    <Button x:Name="clearLogButton" Grid.Row="4" Grid.ColumnSpan="1" Content="Clear Log" Click="ClearLogButton_Click" Height="35" Width="100" HorizontalAlignment="Right" />
+                    <local:LoadingIndicator x:Name="loadingIndicator" Grid.Row="5" Grid.ColumnSpan="2" Visibility="Collapsed" />
                 </Grid>
             </TabItem>
             <TabItem Header="Settings">
                 <StackPanel Orientation="Vertical" Margin="10">
                     <TextBlock Text="Client ID:"/>
-                    <TextBox x:Name="clientIdTextBox" Margin="5" Text="{Binding ClientId, UpdateSourceTrigger=PropertyChanged}" />
+                    <TextBox x:Name="clientIdTextBox" Margin="5">
+                        <TextBox.Text>
+                            <Binding Path="ClientId" UpdateSourceTrigger="PropertyChanged">
+                                <Binding.ValidationRules>
+                                    <local:RequiredValidationRule ErrorMessage="Client ID is required." />
+                                </Binding.ValidationRules>
+                            </Binding>
+                        </TextBox.Text>
+                    </TextBox>
 
                     <TextBlock Text="Client Secret:" />
-                    <TextBox x:Name="clientSecretTextBox" Margin="5" Text="{Binding ClientSecret, UpdateSourceTrigger=PropertyChanged}"/>
+                    <TextBox x:Name="clientSecretTextBox" Margin="5">
+                        <TextBox.Text>
+                            <Binding Path="ClientSecret" UpdateSourceTrigger="PropertyChanged">
+                                <Binding.ValidationRules>
+                                    <local:RequiredValidationRule ErrorMessage="Client Secret is required."/>
+                                </Binding.ValidationRules>
+                            </Binding>
+                        </TextBox.Text>
+                    </TextBox>
 
-                    <Button x:Name="saveCredentialsButton" Content="Save Credentials" Margin="5" />
+                    <TextBlock Text="Output Directory:" />
+                    <TextBox x:Name="outputDirectoryTextBox" Margin="5"/>
+
+
+
+
+
+
+                    <Button x:Name="saveCredentialsButton" Content="Save Credentials" Margin="10,5" 
+                            Command="{Binding SaveCredentialsCommand}" HorizontalAlignment="Left"
+                            Height="35" Width="100"/>
                 </StackPanel>
             </TabItem>
             <TabItem Header="Sheet Names">
-                <TextBox x:Name="sheetNamesTextBox"/>
+                <TextBox x:Name="sheetNamesTextBox" Height="35" VerticalAlignment="Top"/>
+            </TabItem>
+            <TabItem Header="About">
+                <StackPanel Orientation="Vertical" Margin="10">
+                    <TextBlock Text="TimeCollect" FontWeight="Bold" FontSize="16" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Version 1.0" HorizontalAlignment="Center"/>
+                    <TextBlock Text="for BPG, by BPG" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Developed by: jepmanzanillo" Margin="0,10,0,0" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Contact: j.manzanillo@icloud.com" HorizontalAlignment="Center"/>
+                </StackPanel>
             </TabItem>
         </TabControl>
     </Grid>
