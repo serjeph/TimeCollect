@@ -44,18 +44,27 @@ namespace TimeCollect
                 var service = new SheetsService(new BaseClientService.Initializer()
                 {
                     HttpClientInitializer = credential,
-                    ApplicationName = "Application Name of Google API"
+                    ApplicationName = "TimeCollect"
                 });
 
+                // 2. Process data for each sheet
                 var allCleanedData = new List<IList<object>>(); //List to store all cleaned data
+                var sheetNames = SheetNames.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
 
-                foreach (var sheetName in SheetNames.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                string outputDirectory = @"D:\Documents\TimeCollect";
+                if (!Directory.Exists(outputDirectory))
                 {
-                    var sheetData = new List<IList<object>>(); // List to store data for the current sheet
+                    Directory.CreateDirectory(outputDirectory);
+                }
+
+                foreach (var sheetName in sheetNames)
+                {
+                    var sheetData = new List<IList<object>>();
 
                     foreach (var employee in Employees)
                     {
-                        var range = $"{sheetName}!A:Z"; //TODO: edit specific range
+
+                        var range = $"{sheetName}!A7:AR39";
                         var request = service.Spreadsheets.Values.Get(employee.SpreadsheetId, range);
                         var response = await request.ExecuteAsync();
                         var values = response.Values;
@@ -63,28 +72,44 @@ namespace TimeCollect
                         if (values != null && values.Count > 0)
                         {
                             LogMessages += $"Fetched {values.Count} rows for {employee.Nickname} from sheet {sheetName}\n";
-                            sheetData.AddRange(CleanData(values)); // Add cleaned data to the sheetData list
+
+                            // Fill blank cells with 0.00
+                            for (int i = 0; i < values.Count; i++)
+                            {
+                                for (int j = 0; j < values[i].Count; j++)
+                                {
+                                    if (string.IsNullOrEmpty(values[i][j].ToString()))
+                                    {
+                                        values[i][j] = "0.00";
+                                    }
+                                }
+                            }
+
+                            sheetData.AddRange(CleanData(values));
                         }
                         else
                         {
                             LogMessages += $"No data found for {employee.Nickname} from sheet {sheetName}\n";
                         }
+
                     }
 
-                    // Process the combined data for the current sheet
+                    // 3. Process the combined data for the current sheet
                     if (sheetData.Count > 0)
                     {
-                        allCleanedData.AddRange(sheetData); // Add the sheet data to the main list
-                        ExportToExcel(sheetData, sheetName, $"output_{sheetName}.xlsx"); // Call ExportToExcel with sheetName
+                        allCleanedData.AddRange(sheetData);
+                        ExportToExcel(sheetData, sheetName, Path.Combine(outputDirectory, $"output_{sheetName}.xlsx"));
                     }
+
                 }
 
-                // Process all the cleaned data from all sheets combined
+                // 4. Process all the cleand data from all sheets combined
                 if (allCleanedData.Count > 0)
                 {
-                    ExportToExcel(allCleanedData, "AllSheets", $"output_all_sheets.xlsx");
+                    ExportToExcel(allCleanedData, "AllSheets", Path.Combine(outputDirectory, "output_all_sheets.xlsx"));
                     InsertIntoDatabase(allCleanedData);
                 }
+
             }
             catch (Exception ex)
             {
