@@ -160,7 +160,7 @@
             </TabItem>
             <TabItem Header="Settings">
                 <StackPanel Orientation="Vertical" Margin="10">
-                    <TextBlock Text="Client ID:"/>
+                    <TextBlock Text="Google Client ID:"/>
                     <TextBox x:Name="clientIdTextBox" Margin="5">
                         <TextBox.Text>
                             <Binding Path="ClientId" UpdateSourceTrigger="PropertyChanged">
@@ -171,7 +171,18 @@
                         </TextBox.Text>
                     </TextBox>
 
-                    <TextBlock Text="Client Secret:" />
+                    <TextBlock Text="Google Project ID:" />
+                    <TextBox x:Name="projectIdTextBox" Margin="5">
+                        <TextBox.Text>
+                            <Binding Path="ProjectId" UpdateSourceTrigger="PropertyChanged">
+                                <Binding.ValidationRules>
+                                    <local:RequiredValidationRule ErrorMessage="Project ID is required."/>
+                                </Binding.ValidationRules>
+                            </Binding>
+                        </TextBox.Text>
+                    </TextBox>
+
+                    <TextBlock Text="Google Client Secret:" />
                     <TextBox x:Name="clientSecretTextBox" Margin="5">
                         <TextBox.Text>
                             <Binding Path="ClientSecret" UpdateSourceTrigger="PropertyChanged">

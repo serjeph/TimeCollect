@@ -34,8 +34,8 @@ namespace TimeCollect.Services
         /// <returns>A <see cref="SheetsService"/> instance.</returns>
         public async Task<SheetsService> CreateSheetsService()
         {
-            var credential = await GetUserCredential();
-            return new SheetsService(new BaseClientService.Initializer()
+            UserCredential credential = await GetUserCredential();
+            return new SheetsService(new BaseClientService.Initializer
             {
                 HttpClientInitializer = credential,
                 ApplicationName = "TimeCollect",
@@ -67,6 +67,7 @@ namespace TimeCollect.Services
                     CancellationToken.None,
                     new FileDataStore(tokenFilePath, true));
             }
+
         }
 
         private static void GrantPermissionsToDirectory(string directoryPath)
