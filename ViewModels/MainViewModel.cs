@@ -118,7 +118,16 @@ namespace TimeCollect
             }
         }
 
-        public string LogMessages { get; set; }
+        private string _logMessages;
+        public string LogMessages
+        {
+            get => _logMessages;
+            set
+            {
+                _logMessages = value;
+                OnPropertyChanged(nameof(LogMessages));
+            }
+        }
 
         // Constructor
         public MainViewModel()
@@ -173,6 +182,7 @@ namespace TimeCollect
 
         private async Task RunData()
         {
+            LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Data Processing Started...\n";
             try
             {
                 IsRunEnabled = false;
@@ -194,9 +204,16 @@ namespace TimeCollect
                     int uuid = 0;
                     var sheetData = new List<IList<object>>();
                     var transformedValues = new List<IList<object>>();
+                    Console.WriteLine(transformedValues);
+
+                    List<string> workType = new List<string>();
+                    workType.AddRange(Enumerable.Repeat("0.00", 4));
+                    workType.AddRange(Enumerable.Repeat("間接", 5));
+                    workType.AddRange(Enumerable.Repeat("直接", 20));
 
                     foreach (var employee in Employees)
                     {
+                        LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Fetching timesheet data of {employee.Nickname}...\n";
                         var range = $"{sheetName}!A7:AR39";
                         var request = service.Spreadsheets.Values.Get(employee.SpreadsheetId, range);
                         var response = await request.ExecuteAsync();
@@ -208,11 +225,11 @@ namespace TimeCollect
                         values[0].Add("0.00");
 
                         Console.WriteLine(values);
+                        var employeeData = new List<IList<object>>();
+                        Console.WriteLine(employeeData);
 
                         if (values != null && values.Count > 0)
                         {
-                            LogMessages += $"Fetched {values.Count} rows for {employee.Nickname} from sheet {sheetName}\n";
-
 
                             for (int i = 0; i < values.Count; i++)
                             {
@@ -225,68 +242,65 @@ namespace TimeCollect
                                     }
                                 }
                             }
-                            sheetData.AddRange(CleanData(values));
+                            employeeData.AddRange(CleanData(values));
 
+                            Console.WriteLine(employeeData);
+
+                            for (int i = 0; i < 9; i++)
+                            {
+                                employeeData[1][i] = employeeData[0][i];
+                            }
+
+                            for (int i = 0; i < 3; i++)
+                            {
+                                foreach (int j in new List<int> { 10, 14, 18, 22, 26 })
+                                {
+                                    employeeData[0][i + j] = employeeData[0][j - 1];
+                                }
+                            }
+                            Console.WriteLine(employeeData);
+
+                            for (int col = 0; col < 25; col++)
+                            {
+                                for (int row = 0; row < employeeData.Count - 2; row++)
+                                {
+                                    int year = int.Parse(employeeData[row + 2][0].ToString());
+                                    int month = int.Parse(employeeData[row + 2][1].ToString());
+                                    int day = int.Parse(employeeData[row + 2][2].ToString());
+
+                                    string weekType = DateTimeHelper.GetWeekType($"{year}-{month}-{day}");
+                                    string isActual = DateHelper.IsActual($"{year}-{month}-{day}");
+
+                                    transformedValues.Add(new List<object>()
+                                    {
+                                        uuid + 1,
+                                        employee.EmployeeId,
+                                        row + 1,
+                                        year,
+                                        month,
+                                        day,
+                                        weekType,
+                                        employee.Nickname,
+                                        employeeData[0][col + 4],
+                                        employeeData[1][col + 4],
+                                        workType[col + 4],
+                                        isActual,
+                                        float.Parse(employeeData[row + 2][col + 4].ToString())
+                                    });
+
+                                    uuid++;
+
+                                }
+                            }
                         }
                         else
                         {
-                            LogMessages += $"No data found for {employee.Nickname} from sheet {sheetName}\n"; ;
+                            LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] No data found for {employee.Nickname} from sheet {sheetName}\n"; ;
                         }
 
-                        Console.WriteLine(sheetData);
-                        for (int i = 0; i < 9; i++)
-                        {
-                            sheetData[1][i] = sheetData[0][i];
-                        }
-
-                        for (int i = 0; i < 3; i++)
-                        {
-                            foreach (int j in new List<int> { 10, 14, 18, 22, 26 })
-                            {
-                                sheetData[0][i + j] = sheetData[0][j - 1];
-                            }
-                        }
-                        Console.WriteLine(sheetData);
-
-                        List<string> workType = new List<string>();
-                        workType.AddRange(Enumerable.Repeat("0.00", 4));
-                        workType.AddRange(Enumerable.Repeat("間接", 5));
-                        workType.AddRange(Enumerable.Repeat("直接", 20));
-
-                        for (int col = 0; col < 25; col++)
-                        {
-                            for (int row = 0; row < sheetData.Count - 2; row++)
-                            {
-                                int year = int.Parse(sheetData[row + 2][0].ToString());
-                                int month = int.Parse(sheetData[row + 2][1].ToString());
-                                int day = int.Parse(sheetData[row + 2][2].ToString());
-
-                                string weekType = DateTimeHelper.GetWeekType($"{year}-{month}-{day}");
-                                string isActual = DateHelper.IsActual($"{year}-{month}-{day}");
-
-                                transformedValues.Add(new List<object>()
-                                {
-                                    uuid + 1,
-                                    employee.EmployeeId,
-                                    row +1,
-                                    year,
-                                    month,
-                                    day,
-                                    weekType,
-                                    employee.Nickname,
-                                    sheetData[0][col + 4],
-                                    sheetData[1][col + 4],
-                                    workType[col + 4],
-                                    isActual,
-                                    float.Parse(sheetData[row+2][col+4].ToString())
-                                });
-
-                                uuid++;
-
-                            }
-                        }
-                        Console.WriteLine(workType);
                         Console.WriteLine(transformedValues);
+
+                        LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Fetched {transformedValues.Count} rows for {employee.Nickname} from sheet {sheetName}\n";
                     }
 
                     if (transformedValues.Count > 0)
@@ -294,16 +308,37 @@ namespace TimeCollect
                         allCleanedData.AddRange(transformedValues);
 
                         // Get column headers from the database
-                        var columnHeaders = _databaseService.GetColumnHeaders("debug_table");
+                        var columnHeaders = _databaseService.GetColumnHeaders($"timesheet_{sheetName}");
 
-                        ExcelHelper.ExportToExcel(sheetData, sheetName, Path.Combine(outputDirectory, $"output_{sheetName}.xlsx"), columnHeaders);
+                        ExcelHelper.ExportToExcel(transformedValues, sheetName, Path.Combine(outputDirectory, $"output_{sheetName}.xlsx"), columnHeaders);
+                        LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Monthly data was exported to {outputDirectory}\\output_{sheetName}.xlsx\n";
+                        _databaseService.InsertData(transformedValues, sheetName);
+                        LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Data Uploaded to Database with {transformedValues.Count} rows.\n";
                     }
                 }
 
                 if (allCleanedData.Count > 0)
                 {
-                    ExcelHelper.ExportToExcel(allCleanedData, "AllSheets", Path.Combine(outputDirectory, "output_all_sheets.xlsx"));
-                    _databaseService.InsertData(allCleanedData);
+                    var columnHeaders = new List<string>
+                    {
+                        "uuid",
+                        "employee_id",
+                        "row_id",
+                        "年",
+                        "月",
+                        "日",
+                        "week_type",
+                        "名前",
+                        "工号",
+                        "task_type",
+                        "work_type",
+                        "is_actual",
+                        "時間"
+                    };
+
+                    ExcelHelper.ExportToExcel(allCleanedData, "AllSheets", Path.Combine(outputDirectory, "output_all_sheets.xlsx"), columnHeaders);
+                    LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Data exported to excel file: {outputDirectory} \n";
+
                 }
 
             }
@@ -315,6 +350,7 @@ namespace TimeCollect
             {
                 IsRunEnabled = true;
                 IsLoading = Visibility.Collapsed;
+                LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Data Processing Completed!\n";
             }
         }
 

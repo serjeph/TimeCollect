@@ -20,17 +20,22 @@ namespace TimeCollect.Services
                 $"Port={settings.Port};";
         }
 
-        public void InsertData(IList<IList<object>> data)
+        public void InsertData(IList<IList<object>> data, string sheetName)
         {
             try
             {
+                string tableName = $"timesheet_{sheetName}";
+
+                // Create table if it does not exist
+                CreateTableIfNotExists(tableName);
+
                 using (var conn = new NpgsqlConnection(_connectionString))
                 {
                     conn.Open();
                     using (var cmd = new NpgsqlCommand())
                     {
                         cmd.Connection = conn;
-                        cmd.CommandText = @"INSERT INTO debug_table ( uuid, " +
+                        cmd.CommandText = $@"INSERT INTO {tableName} ( uuid, " +
                             "employee_id, " +
                             "row_id, " +
                             "year, " +
@@ -56,8 +61,23 @@ namespace TimeCollect.Services
                             "@task_type, " +
                             "@work_type, " +
                             "@is_actual, " +
-                            "@worked_hours )";
+                            "@worked_hours ) " +
+                            "ON CONFLICT (uuid) DO UPDATE " +
+                            "SET " +
+                            "   employee_id = EXCLUDED.employee_id," +
+                            "   row_id = EXCLUDED.row_id," +
+                            "   year = EXCLUDED.year," +
+                            "   month = EXCLUDED.month," +
+                            "   day = EXCLUDED.day," +
+                            "   week_type = EXCLUDED.week_type," +
+                            "   employee_name = EXCLUDED.employee_name," +
+                            "   project_code = EXCLUDED.project_code," +
+                            "   task_type = EXCLUDED.task_type," +
+                            "   work_type = EXCLUDED.work_type," +
+                            "   is_actual = EXCLUDED.is_actual," +
+                            "   worked_hours = EXCLUDED.worked_hours;";
 
+                        cmd.Parameters.Clear(); // Clear previous parameters
                         // Add parameters
                         cmd.Parameters.AddWithValue("uuid", NpgsqlTypes.NpgsqlDbType.Integer);
                         cmd.Parameters.AddWithValue("employee_id", NpgsqlTypes.NpgsqlDbType.Integer);
@@ -109,9 +129,10 @@ namespace TimeCollect.Services
                 using (var conn = new NpgsqlConnection(_connectionString))
                 {
                     conn.Open();
-                    using (var cmd = new NpgsqlCommand($"SELECT column_name " +
-                        $"FROM information_schema.columns " +
-                        $"WHERE table_name = '{tableName}'", conn))
+                    using (var cmd = new NpgsqlCommand("SELECT column_name " +
+                        "FROM information_schema.columns " +
+                        "WHERE table_schema = 'public' " +
+                        $"AND table_name = '{tableName}';", conn))
                     using (var reader = cmd.ExecuteReader())
                     {
                         while (reader.Read())
@@ -128,6 +149,42 @@ namespace TimeCollect.Services
             }
 
             return columnHeaders;
+        }
+
+        private void CreateTableIfNotExists(string tableName)
+        {
+            try
+            {
+                using (var conn = new NpgsqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new NpgsqlCommand())
+                    {
+                        cmd.Connection = conn;
+                        cmd.CommandText = $@"
+                            CREATE TABLE IF NOT EXISTS {tableName} (
+                                uuid int PRIMARY KEY,
+                                employee_id int,
+                                row_id int,
+                                year int,
+                                month int,
+                                day int,
+                                week_type VARCHAR(50),
+                                employee_name VARCHAR(100),
+                                project_code VARCHAR(100),
+                                task_type VARCHAR(100),
+                                work_type VARCHAR(100),
+                                is_actual VARCHAR(10),
+                                worked_hours NUMERIC(5,2)
+                            )";
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error creating table: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
     }

@@ -19,35 +19,9 @@ namespace TimeCollect
             ((MainViewModel)DataContext).LoadCredentials();
             InitializeComponent();
 
-            // Grant permissions to AppData\Roaming\TimeCollect directory
+
             string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            //string timeCollectDirectory = Path.Combine(appDataPath, "TimeCollect");
-            //
-            //if (!Directory.Exists(timeCollectDirectory))
-            //{
-            //    Directory.CreateDirectory(timeCollectDirectory);
-            //}
-            //
-            //try
-            //{
-            //    SecurityIdentifier sid = new SecurityIdentifier(WellKnownSidType.BuiltinUsersSid, null);
-            //    //string userSid = System.Security.Principal.WindowsIdentity.GetCurrent().User.Value;
-            //    //Console.WriteLine(userSid);
-            //    DirectorySecurity directorySecurity = Directory.GetAccessControl(timeCollectDirectory);
-            //    FileSystemAccessRule accessRule = new FileSystemAccessRule(
-            //        sid,
-            //        FileSystemRights.FullControl,
-            //        InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
-            //        PropagationFlags.None,
-            //        AccessControlType.Allow);
-            //    Console.WriteLine(accessRule);
-            //    directorySecurity.AddAccessRule(accessRule);
-            //    Directory.SetAccessControl(timeCollectDirectory, directorySecurity);
-            //}
-            //catch (Exception ex)
-            //{
-            //    MessageBox.Show($"Error setting directory permissions: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            //}
+
 
             // Load employee data from fole (if it exists)
             string employeeFilePath = Path.Combine(appDataPath, "TimeCollect", "employees.json");
@@ -63,7 +37,6 @@ namespace TimeCollect
                     {
                         ((MainViewModel)DataContext).Employees.Add(employee);
                     }
-
                 }
                 catch (Exception ex)
                 {
@@ -79,6 +52,7 @@ namespace TimeCollect
             //Bind UI elements to ViewModel properties
             clientIdTextBox.SetBinding(TextBox.TextProperty, new Binding("ClientId"));
             clientSecretTextBox.SetBinding(TextBox.TextProperty, new Binding("ClientSecret"));
+            projectIdTextBox.SetBinding(TextBox.TextProperty, new Binding("ProjectId"));
             sheetNamesTextBox.SetBinding(TextBox.TextProperty, new Binding("SheetNames"));
             //outputDirectoryTextBox.SetBinding(TextBox.TextProperty, new Binding("OutputDirectory"));
         }
@@ -104,6 +78,11 @@ namespace TimeCollect
             Directory.CreateDirectory(Path.GetDirectoryName(filePath));
 
             File.WriteAllText(filePath, jsonData);
+        }
+
+        private void LogTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            logTextBox.ScrollToEnd();
         }
     }
 }

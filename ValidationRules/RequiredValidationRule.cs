@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using System.Windows.Controls;
 
-namespace TimeCollect
+namespace TimeCollect.ValidationRules
 {
     public class RequiredValidationRule : ValidationRule
     {

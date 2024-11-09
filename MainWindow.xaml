@@ -4,6 +4,9 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:TimeCollect"
+        xmlns:converters="clr-namespace:TimeCollect.Converters"
+        xmlns:controls="clr-namespace:TimeCollect.Controls"
+        xmlns:validationRules="clr-namespace:TimeCollect.ValidationRules"
         mc:Ignorable="d"
         Title="BPG TimeCollect" Height="450" Width="800"
         MinHeight="1080" MinWidth="1300"
@@ -98,6 +101,8 @@
             <Setter Property="BorderBrush" Value="Gray"/>
             <Setter Property="BorderThickness" Value="1"/>
         </Style>
+        <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <converters:BoolToIsRunEnabledConverter x:Key="BoolToIsRunEnabledConverter"/>
     </Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
@@ -146,16 +151,21 @@
                             <DataGridTextColumn Header="Spreadsheet ID" Binding="{Binding SpreadsheetId}" Width="2*"/>
                         </DataGrid.Columns>
                     </DataGrid>
-
-                    <Button x:Name="runButton" Grid.Row="1" Content="Run" Command="{Binding RunDataCommand}" IsEnabled="{Binding IsRunEnabled}"
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
+                        
+                    
+                    <Button x:Name="runButton" Grid.Row="1" Content="Run" Command="{Binding RunDataCommand}" IsEnabled="{Binding IsRunEnabled, Converter={StaticResource BoolToIsRunEnabledConverter}}"
                             Height="35" Width="100"/>
-
-                    <ProgressBar x:Name="progressBar" Grid.Row="2" Height="15" Margin="10,5"/>
-
-                    <TextBox x:Name="logTextBox" Grid.Row="3" Grid.ColumnSpan="2" IsReadOnly="True" VerticalScrollBarVisibility="Auto" Margin="10" Height="200"/>
+                    </StackPanel>
+                    <ProgressBar x:Name="progressBar" Grid.Row="1" Grid.ColumnSpan="2" Height="10" Margin="10,5" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    
+                    <TextBox x:Name="logTextBox" Grid.Row="2" Grid.ColumnSpan="2" IsReadOnly="True" 
+                             VerticalScrollBarVisibility="Auto" Margin="10" Height="200" 
+                             Text="{Binding LogMessages, UpdateSourceTrigger=PropertyChanged}"
+                             TextChanged="LogTextBox_TextChanged"/>
 
                     <Button x:Name="clearLogButton" Grid.Row="4" Grid.ColumnSpan="1" Content="Clear Log" Click="ClearLogButton_Click" Height="35" Width="100" HorizontalAlignment="Right" />
-                    <local:LoadingIndicator x:Name="loadingIndicator" Grid.Row="5" Grid.ColumnSpan="2" Visibility="Collapsed" />
+                    <controls:LoadingIndicator x:Name="loadingIndicator" Grid.Row="5" Grid.ColumnSpan="2" Visibility="Collapsed" />
                 </Grid>
             </TabItem>
             <TabItem Header="Settings">
@@ -165,7 +175,7 @@
                         <TextBox.Text>
                             <Binding Path="ClientId" UpdateSourceTrigger="PropertyChanged">
                                 <Binding.ValidationRules>
-                                    <local:RequiredValidationRule ErrorMessage="Client ID is required." />
+                                    <validationRules:RequiredValidationRule ErrorMessage="Client ID is required." />
                                 </Binding.ValidationRules>
                             </Binding>
                         </TextBox.Text>
@@ -176,7 +186,7 @@
                         <TextBox.Text>
                             <Binding Path="ProjectId" UpdateSourceTrigger="PropertyChanged">
                                 <Binding.ValidationRules>
-                                    <local:RequiredValidationRule ErrorMessage="Project ID is required."/>
+                                    <validationRules:RequiredValidationRule ErrorMessage="Project ID is required."/>
                                 </Binding.ValidationRules>
                             </Binding>
                         </TextBox.Text>
@@ -187,7 +197,7 @@
                         <TextBox.Text>
                             <Binding Path="ClientSecret" UpdateSourceTrigger="PropertyChanged">
                                 <Binding.ValidationRules>
-                                    <local:RequiredValidationRule ErrorMessage="Client Secret is required."/>
+                                    <validationRules:RequiredValidationRule ErrorMessage="Client Secret is required."/>
                                 </Binding.ValidationRules>
                             </Binding>
                         </TextBox.Text>

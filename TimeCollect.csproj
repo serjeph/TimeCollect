@@ -93,6 +93,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Converters\BoolToIsRunEnabledConverter.cs" />
     <Compile Include="Converters\BoolToVisibilityConverter.cs" />
     <Compile Include="Helpers\DateHelper.cs" />
     <Compile Include="Helpers\DateTimeHelper.cs" />
