@@ -15,23 +15,60 @@ namespace TimeCollect
     {
         public MainWindow()
         {
+            DataContext = new MainViewModel();
+            ((MainViewModel)DataContext).LoadCredentials();
             InitializeComponent();
 
-            // Load employee data from file
+            // Grant permissions to AppData\Roaming\TimeCollect directory
             string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            string filePath = Path.Combine(appDataPath, "TimeCollect", "employees.json");
+            //string timeCollectDirectory = Path.Combine(appDataPath, "TimeCollect");
+            //
+            //if (!Directory.Exists(timeCollectDirectory))
+            //{
+            //    Directory.CreateDirectory(timeCollectDirectory);
+            //}
+            //
+            //try
+            //{
+            //    SecurityIdentifier sid = new SecurityIdentifier(WellKnownSidType.BuiltinUsersSid, null);
+            //    //string userSid = System.Security.Principal.WindowsIdentity.GetCurrent().User.Value;
+            //    //Console.WriteLine(userSid);
+            //    DirectorySecurity directorySecurity = Directory.GetAccessControl(timeCollectDirectory);
+            //    FileSystemAccessRule accessRule = new FileSystemAccessRule(
+            //        sid,
+            //        FileSystemRights.FullControl,
+            //        InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+            //        PropagationFlags.None,
+            //        AccessControlType.Allow);
+            //    Console.WriteLine(accessRule);
+            //    directorySecurity.AddAccessRule(accessRule);
+            //    Directory.SetAccessControl(timeCollectDirectory, directorySecurity);
+            //}
+            //catch (Exception ex)
+            //{
+            //    MessageBox.Show($"Error setting directory permissions: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            //}
 
-            if (File.Exists(filePath))
+            // Load employee data from fole (if it exists)
+            string employeeFilePath = Path.Combine(appDataPath, "TimeCollect", "employees.json");
+
+            if (File.Exists(employeeFilePath))
             {
+                Console.WriteLine(employeeFilePath);
                 try
                 {
-                    string jsonData = File.ReadAllText(filePath);
+                    string jsonData = File.ReadAllText(employeeFilePath);
                     var employees = JsonConvert.DeserializeObject<ObservableCollection<Employee>>(jsonData);
-                    ((MainViewModel)DataContext).Employees = employees;
+                    foreach (var employee in employees)
+                    {
+                        ((MainViewModel)DataContext).Employees.Add(employee);
+                    }
+
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.Message.ToString());
+                    Console.WriteLine($"Error loading employee data: {ex.Message}");
+                    //throw;
                 }
             }
             else
@@ -39,9 +76,6 @@ namespace TimeCollect
                 // if the file doesn't exist, initialize on empty ObservationCollection
                 ((MainViewModel)DataContext).Employees = new ObservableCollection<Employee>();
             }
-
-            DataContext = new MainViewModel();
-
             //Bind UI elements to ViewModel properties
             clientIdTextBox.SetBinding(TextBox.TextProperty, new Binding("ClientId"));
             clientSecretTextBox.SetBinding(TextBox.TextProperty, new Binding("ClientSecret"));

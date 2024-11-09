@@ -6,7 +6,7 @@ using TimeCollect.Models;
 
 namespace TimeCollect.Services
 {
-    internal class DatabaseService
+    public class DatabaseService
     {
         private readonly string _connectionString;
 

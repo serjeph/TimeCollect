@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows.Input;
 
-namespace TimeCollect
+namespace TimeCollect.Commands
 {
     public class RelayCommand : ICommand
     {

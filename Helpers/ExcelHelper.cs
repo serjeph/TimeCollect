@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace TimeCollect.Helpers
 {
-    internal class ExcelHelper
+    public class ExcelHelper
     {
         public static void ExportToExcel(IList<IList<object>> data, string sheetName, string filepath, List<string> columnHeaders = null)
         {

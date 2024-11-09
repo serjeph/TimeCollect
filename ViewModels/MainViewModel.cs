@@ -8,6 +8,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using TimeCollect.Commands;
 using TimeCollect.Helpers;
 using TimeCollect.Models;
 using TimeCollect.Services;
@@ -108,8 +109,19 @@ namespace TimeCollect
         // Constructor
         public MainViewModel()
         {
-
             Employees = new ObservableCollection<Employee>();
+            DotNetEnv.Env.Load();
+#if DEBUG
+            ClientId = DotNetEnv.Env.GetString("CLIENT_ID");
+            ClientSecret = DotNetEnv.Env.GetString("CLIENT_SECRET");
+            SheetNames = "202409,202410";
+#endif
+
+            // Load employee data from file
+            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            string employeeFilePath = Path.Combine(appDataPath, "TimeCollect", "employees.json");
+
+
             RunDataCommand = new RelayCommand(async () => await RunData());
             SaveCredentialsCommand = new RelayCommand(SaveCredentials);
             SaveDatabaseSettingsCommand = new RelayCommand(SaveDatabaseSettings);
@@ -176,9 +188,17 @@ namespace TimeCollect
                         var response = await request.ExecuteAsync();
                         var values = response.Values;
 
+                        Console.WriteLine(values);
+
                         if (values != null && values.Count > 0)
                         {
                             LogMessages += $"Fetched {values.Count} rows for {employee.Nickname} from sheet {sheetName}\n";
+
+
+
+
+
+
 
                             for (int i = 0; i < values.Count; i++)
                             {
@@ -260,12 +280,41 @@ namespace TimeCollect
 
             string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             string filepath = Path.Combine(appDataPath, "TimeCollect", "credentials.json");
+            string tokenFilePath = Path.Combine(appDataPath, "TimeCollect", "token.json");
             Directory.CreateDirectory(Path.GetDirectoryName(filepath));
 
             File.WriteAllText(filepath, json);
+            if (!File.Exists(tokenFilePath))
+            {
+                File.WriteAllText(tokenFilePath, "{}");
+            }
 
             MessageBox.Show("Credentials saved successfully", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
+
+        public void LoadCredentials()
+        {
+            if (File.Exists(_credentialsPath))
+            {
+                try
+                {
+                    string json = File.ReadAllText(_credentialsPath);
+                    var secrets = JsonConvert.DeserializeObject<ClientSecrets>(json);
+
+                    ClientId = secrets.ClientId;
+                    ClientSecret = secrets.ClientSecret;
+                }
+                catch (Exception ex)
+                {
+                    //Handle exceptions
+                    Console.WriteLine($"Error loading credentials: {ex.Message}");
+                }
+            }
+        }
+
+
+
+
 
         public event PropertyChangedEventHandler PropertyChanged;
 
