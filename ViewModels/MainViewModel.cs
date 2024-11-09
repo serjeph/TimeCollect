@@ -204,7 +204,6 @@ namespace TimeCollect
                     int uuid = 0;
                     var sheetData = new List<IList<object>>();
                     var transformedValues = new List<IList<object>>();
-                    Console.WriteLine(transformedValues);
 
                     List<string> workType = new List<string>();
                     workType.AddRange(Enumerable.Repeat("0.00", 4));
@@ -213,7 +212,7 @@ namespace TimeCollect
 
                     foreach (var employee in Employees)
                     {
-                        LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Fetching timesheet data of {employee.Nickname}...\n";
+                        LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{sheetName}]-[{employee.Nickname}] Data fetching...\n";
                         var range = $"{sheetName}!A7:AR39";
                         var request = service.Spreadsheets.Values.Get(employee.SpreadsheetId, range);
                         var response = await request.ExecuteAsync();
@@ -224,9 +223,7 @@ namespace TimeCollect
                         values[0].Add("0.00");
                         values[0].Add("0.00");
 
-                        Console.WriteLine(values);
                         var employeeData = new List<IList<object>>();
-                        Console.WriteLine(employeeData);
 
                         if (values != null && values.Count > 0)
                         {
@@ -288,6 +285,7 @@ namespace TimeCollect
                                         float.Parse(employeeData[row + 2][col + 4].ToString())
                                     });
 
+
                                     uuid++;
 
                                 }
@@ -300,7 +298,7 @@ namespace TimeCollect
 
                         Console.WriteLine(transformedValues);
 
-                        LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Fetched {transformedValues.Count} rows for {employee.Nickname} from sheet {sheetName}\n";
+                        LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{sheetName}]-[{employee.Nickname}] Data fetched...\n";
                     }
 
                     if (transformedValues.Count > 0)

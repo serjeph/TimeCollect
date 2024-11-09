@@ -165,7 +165,7 @@
                              TextChanged="LogTextBox_TextChanged"/>
 
                     <Button x:Name="clearLogButton" Grid.Row="4" Grid.ColumnSpan="1" Content="Clear Log" Click="ClearLogButton_Click" Height="35" Width="100" HorizontalAlignment="Right" />
-                    <controls:LoadingIndicator x:Name="loadingIndicator" Grid.Row="5" Grid.ColumnSpan="2" Visibility="Collapsed" />
+                    <controls:LoadingIndicator x:Name="loadingIndicator" Grid.Row="1" Grid.ColumnSpan="2" Visibility="Collapsed" />
                 </Grid>
             </TabItem>
             <TabItem Header="Settings">
