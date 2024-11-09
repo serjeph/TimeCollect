@@ -65,7 +65,7 @@ namespace TimeCollect
             // 3. save the json to a file
             string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             string filePath = Path.Combine(appDataPath, "TimeCollect", "employees.json");
-
+            Console.WriteLine(filePath);
             // Ensuring the directory exists
             Directory.CreateDirectory(Path.GetDirectoryName(filePath));
 
