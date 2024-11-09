@@ -6,7 +6,7 @@ namespace TimeCollect.Helpers
 {
     internal class ExcelHelper
     {
-        public static void ExportToExcel(IList<IList<object>> data, string sheetName, string filepath)
+        public static void ExportToExcel(IList<IList<object>> data, string sheetName, string filepath, List<string> columnHeaders = null)
         {
             try
             {
@@ -14,6 +14,19 @@ namespace TimeCollect.Helpers
                 {
                     var worksheet = workbook.Worksheets.Add(sheetName);
                     int row = 1;
+
+                    // Add column headers
+                    if (columnHeaders != null)
+                    {
+                        int col = 1;
+                        foreach (var header in columnHeaders)
+                        {
+                            worksheet.Cell(row, col).Value = header;
+                            col++;
+                        }
+                        row++;
+                    }
+
                     foreach (var rowData in data)
                     {
                         int col = 1;

@@ -46,7 +46,7 @@ namespace TimeCollect
             clientIdTextBox.SetBinding(TextBox.TextProperty, new Binding("ClientId"));
             clientSecretTextBox.SetBinding(TextBox.TextProperty, new Binding("ClientSecret"));
             sheetNamesTextBox.SetBinding(TextBox.TextProperty, new Binding("SheetNames"));
-            outputDirectoryTextBox.SetBinding(TextBox.TextProperty, new Binding("OutputDirectory"));
+            //outputDirectoryTextBox.SetBinding(TextBox.TextProperty, new Binding("OutputDirectory"));
         }
 
         private void ClearLogButton_Click(object sender, RoutedEventArgs e)

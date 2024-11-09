@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Windows;
+using TimeCollect.Models;
 
 namespace TimeCollect.Services
 {
@@ -9,9 +10,14 @@ namespace TimeCollect.Services
     {
         private readonly string _connectionString;
 
-        public DatabaseService(string connectionString)
+        public DatabaseService(DatabaseSettings settings)
         {
-            _connectionString = connectionString;
+            _connectionString = $"" +
+                $"Host={settings.Host};" +
+                $"Database={settings.Database};" +
+                $"Username={settings.Username};" +
+                $"Password={settings.Password};" +
+                $"Port={settings.Port};";
         }
 
         public void InsertData(IList<IList<object>> data)
@@ -93,5 +99,36 @@ namespace TimeCollect.Services
                 MessageBox.Show($"An error occurred while inserting into the database: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        public List<string> GetColumnHeaders(string tableName)
+        {
+            var columnHeaders = new List<string>();
+
+            try
+            {
+                using (var conn = new NpgsqlConnection(_connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = new NpgsqlCommand($"SELECT column_name " +
+                        $"FROM information_schema.columns " +
+                        $"WHERE table_name = '{tableName}'", conn))
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            columnHeaders.Add(reader.GetString(0));
+                        }
+                    }
+
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error getting column headers: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+            return columnHeaders;
+        }
+
     }
 }

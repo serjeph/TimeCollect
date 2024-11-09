@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using TimeCollect.Helpers;
+using TimeCollect.Models;
 using TimeCollect.Services;
 
 namespace TimeCollect
@@ -21,8 +22,20 @@ namespace TimeCollect
         private readonly DatabaseService _databaseService;
 
         public ObservableCollection<Employee> Employees { get; set; }
+
+        public string DatabaseHost { get; set; } = "localhost"; // Default host
+        public string DatabaseName { get; set; }
+        public string DatabaseUsername { get; set; } = "postgres"; // Default username
+        public string DatabasePassword { get; set; }
+        public int DatabasePort { get; set; } = 5433; // Default port
+        private readonly string _databaseSettingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", "database_settings.json");
+
+
         public ICommand RunDataCommand { get; set; }
         public ICommand SaveCredentialsCommand { get; set; }
+        public ICommand SaveDatabaseSettingsCommand { get; set; }
+
+
 
         private string _clientId;
         public string ClientId
@@ -92,18 +105,47 @@ namespace TimeCollect
 
         public string LogMessages { get; set; }
 
+        // Constructor
         public MainViewModel()
         {
 
             Employees = new ObservableCollection<Employee>();
             RunDataCommand = new RelayCommand(async () => await RunData());
             SaveCredentialsCommand = new RelayCommand(SaveCredentials);
+            SaveDatabaseSettingsCommand = new RelayCommand(SaveDatabaseSettings);
 
             _googleSheetsService = new GoogleSheetsService(_credentialsPath);
 
-            string connString = "Host=localhost;Database=timecollect;Username=postgres;Password=admin;Port=5433";
-            _databaseService = new DatabaseService(connString);
+            if (File.Exists(_databaseSettingsPath))
+            {
+                try
+                {
+                    string json = File.ReadAllText(_databaseSettingsPath);
+                    var settings = JsonConvert.DeserializeObject<DatabaseSettings>(json);
+
+                    DatabaseHost = settings.Host;
+                    DatabaseName = settings.Database;
+                    DatabaseUsername = settings.Username;
+                    DatabasePassword = settings.Password;
+                    DatabasePort = settings.Port;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error loading database settings: {ex.Message}");
+                    throw;
+                }
+            }
+
+            _databaseService = new DatabaseService(new DatabaseSettings
+            {
+                Host = DatabaseHost,
+                Database = DatabaseName,
+                Username = DatabaseUsername,
+                Password = DatabasePassword,
+                Port = DatabasePort
+            });
         }
+
 
         private async Task RunData()
         {
@@ -162,7 +204,11 @@ namespace TimeCollect
                     if (sheetData.Count > 0)
                     {
                         allCleanedData.AddRange(sheetData);
-                        ExcelHelper.ExportToExcel(sheetData, sheetName, Path.Combine(outputDirectory, $"output_{sheetName}.xlsx"));
+
+                        // Get column headers from the database
+                        var columnHeaders = _databaseService.GetColumnHeaders("debug_table");
+
+                        ExcelHelper.ExportToExcel(sheetData, sheetName, Path.Combine(outputDirectory, $"output_{sheetName}.xlsx"), columnHeaders);
                     }
                 }
 
@@ -226,6 +272,24 @@ namespace TimeCollect
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private void SaveDatabaseSettings()
+        {
+            var settings = new DatabaseSettings
+            {
+                Host = DatabaseHost,
+                Database = DatabaseName,
+                Username = DatabaseUsername,
+                Password = DatabasePassword,
+                Port = DatabasePort
+            };
+
+            string json = JsonConvert.SerializeObject(settings, Formatting.Indented);
+            Directory.CreateDirectory(Path.GetDirectoryName(_databaseSettingsPath));
+            File.WriteAllText(_databaseSettingsPath, json);
+
+            MessageBox.Show("Database settings saved succesfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 
