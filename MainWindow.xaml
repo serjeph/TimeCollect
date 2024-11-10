@@ -152,57 +152,33 @@
                         </DataGrid.Columns>
                     </DataGrid>
                     <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
-                        
                     
                     <Button x:Name="runButton" Grid.Row="1" Content="Run" Command="{Binding RunDataCommand}" IsEnabled="{Binding IsRunEnabled, Converter={StaticResource BoolToIsRunEnabledConverter}}"
                             Height="35" Width="100"/>
-                    </StackPanel>
+                        
                     <ProgressBar x:Name="progressBar" Grid.Row="1" Grid.ColumnSpan="2" Height="10" Margin="10,5" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                    
+                    <controls:LoadingIndicator x:Name="loadingIndicator" Grid.Row="1" Grid.ColumnSpan="2" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+                    </StackPanel>
                     <TextBox x:Name="logTextBox" Grid.Row="2" Grid.ColumnSpan="2" IsReadOnly="True" 
                              VerticalScrollBarVisibility="Auto" Margin="10" Height="200" 
                              Text="{Binding LogMessages, UpdateSourceTrigger=PropertyChanged}"
                              TextChanged="LogTextBox_TextChanged"/>
-
-                    <Button x:Name="clearLogButton" Grid.Row="4" Grid.ColumnSpan="1" Content="Clear Log" Click="ClearLogButton_Click" Height="35" Width="100" HorizontalAlignment="Right" />
-                    <controls:LoadingIndicator x:Name="loadingIndicator" Grid.Row="1" Grid.ColumnSpan="2" Visibility="Collapsed" />
+                    
+                    <Button x:Name="clearLogButton" Grid.Row="3" Grid.ColumnSpan="1" Content="Clear Log" Click="ClearLogButton_Click" Height="35" Width="100" HorizontalAlignment="Right" />
                 </Grid>
             </TabItem>
             <TabItem Header="Settings">
                 <StackPanel Orientation="Vertical" Margin="10">
-                    <TextBlock Text="Google Client ID:"/>
-                    <TextBox x:Name="clientIdTextBox" Margin="5">
-                        <TextBox.Text>
-                            <Binding Path="ClientId" UpdateSourceTrigger="PropertyChanged">
-                                <Binding.ValidationRules>
-                                    <validationRules:RequiredValidationRule ErrorMessage="Client ID is required." />
-                                </Binding.ValidationRules>
-                            </Binding>
-                        </TextBox.Text>
-                    </TextBox>
+                    <TextBlock Text="Google Cloud Client ID:"/>
+                    <TextBox Text="{Binding ClientId, UpdateSourceTrigger=PropertyChanged}" Margin="5"/>
 
-                    <TextBlock Text="Google Project ID:" />
-                    <TextBox x:Name="projectIdTextBox" Margin="5">
-                        <TextBox.Text>
-                            <Binding Path="ProjectId" UpdateSourceTrigger="PropertyChanged">
-                                <Binding.ValidationRules>
-                                    <validationRules:RequiredValidationRule ErrorMessage="Project ID is required."/>
-                                </Binding.ValidationRules>
-                            </Binding>
-                        </TextBox.Text>
-                    </TextBox>
+                    <TextBlock Text="Google Cloud Project ID:" />
+                    <TextBox Text="{Binding ProjectId, UpdateSourceTrigger=PropertyChanged}" Margin="5"/>
 
-                    <TextBlock Text="Google Client Secret:" />
-                    <TextBox x:Name="clientSecretTextBox" Margin="5">
-                        <TextBox.Text>
-                            <Binding Path="ClientSecret" UpdateSourceTrigger="PropertyChanged">
-                                <Binding.ValidationRules>
-                                    <validationRules:RequiredValidationRule ErrorMessage="Client Secret is required."/>
-                                </Binding.ValidationRules>
-                            </Binding>
-                        </TextBox.Text>
-                    </TextBox>
-
+                    <TextBlock Text="Google Cloud Client Secret:" />
+                    
+                    <PasswordBox x:Name="clientSecretPasswordBox" Margin="5" PasswordChar="*" Password="Hidden"/>
 
                     <Button x:Name="saveCredentialsButton" Content="Save Credentials" Margin="10,5" 
                             Command="{Binding SaveCredentialsCommand}" HorizontalAlignment="Left"
@@ -221,7 +197,7 @@
                     <TextBox Text="{Binding DatabaseUsername, UpdateSourceTrigger=PropertyChanged}" Margin="5"/>
 
                     <TextBlock Text="Password:" />
-                    <TextBox Text="{Binding DatabasePassword, UpdateSourceTrigger=PropertyChanged}" Margin="5"/>
+                    <PasswordBox x:Name="databasePasswordBox" Margin="5" PasswordChar="*" Password="Hidden"/>
 
                     <TextBlock Text="Port" />
                     <TextBox Text="{Binding DatabasePort, UpdateSourceTrigger=PropertyChanged}" Margin="5"/>

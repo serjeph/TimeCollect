@@ -19,6 +19,9 @@ namespace TimeCollect
             ((MainViewModel)DataContext).LoadCredentials();
             InitializeComponent();
 
+            // Attach event handlers to PasswordBoxes
+            databasePasswordBox.PasswordChanged += DatabasePasswordBox_PasswordChanged;
+            clientSecretPasswordBox.PasswordChanged += ClientSecretPasswordBox_PasswordChanged;
 
             string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 
@@ -50,9 +53,6 @@ namespace TimeCollect
                 ((MainViewModel)DataContext).Employees = new ObservableCollection<Employee>();
             }
             //Bind UI elements to ViewModel properties
-            clientIdTextBox.SetBinding(TextBox.TextProperty, new Binding("ClientId"));
-            clientSecretTextBox.SetBinding(TextBox.TextProperty, new Binding("ClientSecret"));
-            projectIdTextBox.SetBinding(TextBox.TextProperty, new Binding("ProjectId"));
             sheetNamesTextBox.SetBinding(TextBox.TextProperty, new Binding("SheetNames"));
             //outputDirectoryTextBox.SetBinding(TextBox.TextProperty, new Binding("OutputDirectory"));
         }
@@ -83,6 +83,22 @@ namespace TimeCollect
         private void LogTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             logTextBox.ScrollToEnd();
+        }
+
+        private void ClientSecretPasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
+        {
+            if (sender is PasswordBox passwordBox && DataContext is MainViewModel viewModel)
+            {
+                viewModel.ClientSecret = passwordBox.SecurePassword;
+            }
+        }
+
+        private void DatabasePasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
+        {
+            if (sender is PasswordBox passwordBox && DataContext is MainViewModel viewModel)
+            {
+                viewModel.DatabasePassword = passwordBox.SecurePassword;
+            }
         }
     }
 }

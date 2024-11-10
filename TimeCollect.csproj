@@ -103,6 +103,7 @@
     </Compile>
     <Compile Include="Commands\RelayCommand.cs" />
     <Compile Include="Models\DatabaseSettings.cs" />
+    <Compile Include="Models\GoogleCredentials.cs" />
     <Compile Include="ValidationRules\RequiredValidationRule.cs" />
     <Page Include="Controls\LoadingIndicator.xaml">
       <SubType>Designer</SubType>

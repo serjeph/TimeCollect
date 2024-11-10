@@ -1,11 +1,12 @@
-﻿using Google.Apis.Auth.OAuth2;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Security;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -20,6 +21,7 @@ namespace TimeCollect
     {
 
         private readonly string _credentialsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", "credentials.json");
+        private readonly string _googleCredentialsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", "googlecredentials.json");
         private readonly GoogleSheetsService _googleSheetsService;
         private readonly DatabaseService _databaseService;
 
@@ -28,7 +30,18 @@ namespace TimeCollect
         public string DatabaseHost { get; set; } = "localhost"; // Default host
         public string DatabaseName { get; set; }
         public string DatabaseUsername { get; set; } = "postgres"; // Default username
-        public string DatabasePassword { get; set; }
+
+        private SecureString _databasePassword;
+        public SecureString DatabasePassword
+        {
+            get => _databasePassword;
+            set
+            {
+                _databasePassword = value;
+                OnPropertyChanged(nameof(DatabasePassword));
+            }
+        }
+
         public int DatabasePort { get; set; } = 5433; // Default port
         private readonly string _databaseSettingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", "database_settings.json");
 
@@ -38,41 +51,19 @@ namespace TimeCollect
         public ICommand SaveDatabaseSettingsCommand { get; set; }
 
 
+        public string ClientId { get; set; }
+        public string ProjectId { get; set; }
 
-        private string _clientId;
-        public string ClientId
-        {
-            get => _clientId;
-            set
-            {
-                _clientId = value;
-                OnPropertyChanged(nameof(ClientId));
-            }
-        }
-
-        private string _projectId;
-        public string ProjectId
-        {
-            get => _projectId;
-            set
-            {
-                _projectId = value;
-                OnPropertyChanged(nameof(ProjectId));
-            }
-        }
-
-        private string _clientSecret;
-        public string ClientSecret
+        private SecureString _clientSecret;
+        public SecureString ClientSecret
         {
             get => _clientSecret;
             set
             {
                 _clientSecret = value;
-                OnPropertyChanged(nameof(_clientSecret));
+                OnPropertyChanged(nameof(ClientSecret));
             }
         }
-
-
 
         private string _sheetNames;
         public string SheetNames
@@ -133,7 +124,6 @@ namespace TimeCollect
         public MainViewModel()
         {
             Employees = new ObservableCollection<Employee>();
-            DotNetEnv.Env.Load();
 #if DEBUG
             SheetNames = "202409,202410";
 #endif
@@ -159,7 +149,10 @@ namespace TimeCollect
                     DatabaseHost = settings.Host;
                     DatabaseName = settings.Database;
                     DatabaseUsername = settings.Username;
-                    DatabasePassword = settings.Password;
+
+                    // DatabasePassword as SecureString
+                    DatabasePassword = ConvertToSecureString(settings.Password);
+
                     DatabasePort = settings.Port;
                 }
                 catch (Exception ex)
@@ -169,14 +162,34 @@ namespace TimeCollect
                 }
             }
 
-            _databaseService = new DatabaseService(new DatabaseSettings
+
+            SecureString secureDatabasePassword = DatabasePassword;
+            IntPtr unmanagedString = IntPtr.Zero;
+            string plainTextDatabasePassword = null; // initiate lang muna
+            try
             {
-                Host = DatabaseHost,
-                Database = DatabaseName,
-                Username = DatabaseUsername,
-                Password = DatabasePassword,
-                Port = DatabasePort
-            });
+                unmanagedString = Marshal.SecureStringToGlobalAllocUnicode(secureDatabasePassword);
+                plainTextDatabasePassword = Marshal.PtrToStringUni(unmanagedString);
+
+                _databaseService = new DatabaseService(new DatabaseSettings
+                {
+                    Host = DatabaseHost,
+                    Database = DatabaseName,
+                    Username = DatabaseUsername,
+                    Password = plainTextDatabasePassword,
+                    Port = DatabasePort
+                });
+            }
+            finally
+            {
+                Marshal.ZeroFreeGlobalAllocUnicode(unmanagedString);
+
+                if (plainTextDatabasePassword != null)
+                {
+                    plainTextDatabasePassword = null;
+                    // consider using garbage collector
+                }
+            }
         }
 
 
@@ -372,47 +385,79 @@ namespace TimeCollect
 
         private void SaveCredentials()
         {
-            var secrets = new
+            SecureString secureClientSecret = ClientSecret;
+
+            // Convert SecureString to plain string
+            IntPtr unmanagedString = IntPtr.Zero;
+            string plainTextClientSecret = null;
+
+            try
             {
-                installed = new
+                unmanagedString = Marshal.SecureStringToGlobalAllocUnicode(secureClientSecret);
+                plainTextClientSecret = Marshal.PtrToStringUni(unmanagedString);
+
+
+                var googleCredentials = new GoogleCredentials
                 {
-                    client_id = ClientId,
-                    project_id = ProjectId,
-                    auth_uri = "https://accounts.google.com/o/oauth2/auth",
-                    token_uri = "https://oauth2.googleapis.com/token",
-                    auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs",
-                    client_secret = ClientSecret,
-                    redirect_uris = new[] { "http://localhost" }
-                }
-            };
+                    GoogleClientId = ClientId,
+                    GoogleProjectId = ProjectId,
+                    GoogleClientSecret = plainTextClientSecret,
+                };
 
-            string json = JsonConvert.SerializeObject(secrets, Formatting.Indented);
+                var secrets = new
+                {
+                    installed = new
+                    {
+                        client_id = googleCredentials.GoogleClientId,
+                        project_id = googleCredentials.GoogleProjectId,
+                        auth_uri = "https://accounts.google.com/o/oauth2/auth",
+                        token_uri = "https://oauth2.googleapis.com/token",
+                        auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs",
+                        client_secret = googleCredentials.GoogleClientSecret,
+                        redirect_uris = new[] { "http://localhost" }
+                    }
+                };
 
-            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            string filepath = Path.Combine(appDataPath, "TimeCollect", "credentials.json");
-            string tokenFilePath = Path.Combine(appDataPath, "TimeCollect", "token.json");
-            Directory.CreateDirectory(Path.GetDirectoryName(filepath));
+                string json = JsonConvert.SerializeObject(secrets, Formatting.Indented);
+                string googleJson = JsonConvert.SerializeObject(googleCredentials, Formatting.Indented);
+                string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+                string filepath = Path.Combine(appDataPath, "TimeCollect", "credentials.json");
+                string googlePath = Path.Combine(appDataPath, "TimeCollect", "googlecredentials.json");
 
-            File.WriteAllText(filepath, json);
-            if (!File.Exists(tokenFilePath))
-            {
-                File.WriteAllText(tokenFilePath, "{}");
+                Directory.CreateDirectory(Path.GetDirectoryName(filepath));
+                Directory.CreateDirectory(Path.GetDirectoryName(googlePath));
+
+                File.WriteAllText(filepath, json);
+                File.WriteAllText(googlePath, googleJson);
+
+                MessageBox.Show("Credentials saved successfully", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
             }
+            finally
+            {
+                Marshal.ZeroFreeGlobalAllocUnicode(unmanagedString);
 
-            MessageBox.Show("Credentials saved successfully", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                if (plainTextClientSecret != null)
+                {
+                    plainTextClientSecret = null;
+                    // Consider using garbage collector method
+                }
+            }
         }
 
         public void LoadCredentials()
         {
-            if (File.Exists(_credentialsPath))
+            if (File.Exists(_googleCredentialsPath))
             {
                 try
                 {
-                    string json = File.ReadAllText(_credentialsPath);
-                    var secrets = JsonConvert.DeserializeObject<ClientSecrets>(json);
+                    string json = File.ReadAllText(_googleCredentialsPath);
+                    var secrets = JsonConvert.DeserializeObject<GoogleCredentials>(json);
 
-                    ClientId = secrets.ClientId;
-                    ClientSecret = secrets.ClientSecret;
+                    ClientId = secrets.GoogleClientId;
+                    ProjectId = secrets.GoogleProjectId;
+
+                    // Handle ClientSecret as SecureString
+                    ClientSecret = ConvertToSecureString(secrets.GoogleClientSecret);
                 }
                 catch (Exception ex)
                 {
@@ -422,6 +467,19 @@ namespace TimeCollect
             }
         }
 
+        private SecureString ConvertToSecureString(string plaintText)
+        {
+            if (plaintText == null)
+                throw new ArgumentNullException(nameof(plaintText));
+
+            var secureString = new SecureString();
+            foreach (char c in plaintText)
+            {
+                secureString.AppendChar(c);
+            }
+            secureString.MakeReadOnly();
+            return secureString;
+        }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -432,21 +490,47 @@ namespace TimeCollect
 
         private void SaveDatabaseSettings()
         {
-            var settings = new DatabaseSettings
+            SecureString securePassword = DatabasePassword;
+
+            //Convert SecureString to plain string (in a secure context)
+            IntPtr unmanagedString = IntPtr.Zero;
+            string plainTextPassword = null; // just to initialize here
+
+            try
             {
-                Host = DatabaseHost,
-                Database = DatabaseName,
-                Username = DatabaseUsername,
-                Password = DatabasePassword,
-                Port = DatabasePort
-            };
+                unmanagedString = Marshal.SecureStringToGlobalAllocUnicode(securePassword);
+                plainTextPassword = Marshal.PtrToStringUni(unmanagedString);
 
-            string json = JsonConvert.SerializeObject(settings, Formatting.Indented);
-            Directory.CreateDirectory(Path.GetDirectoryName(_databaseSettingsPath));
-            File.WriteAllText(_databaseSettingsPath, json);
 
-            MessageBox.Show("Database settings saved succesfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                var settings = new DatabaseSettings
+                {
+                    Host = DatabaseHost,
+                    Database = DatabaseName,
+                    Username = DatabaseUsername,
+                    Password = plainTextPassword, // Use the plain text version
+                    Port = DatabasePort
+                };
+
+                string json = JsonConvert.SerializeObject(settings, Formatting.Indented);
+                Directory.CreateDirectory(Path.GetDirectoryName(_databaseSettingsPath));
+                File.WriteAllText(_databaseSettingsPath, json);
+
+                MessageBox.Show("Database settings saved succesfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            finally
+            {
+                // zero out and free the unmanaged memory
+                Marshal.ZeroFreeGlobalAllocUnicode(unmanagedString);
+
+                // Important: clear the plain text password
+                if (plainTextPassword != null)
+                {
+                    plainTextPassword = null;
+                    // TODO: consider using garbage collection
+                }
+            }
         }
+
     }
 
 }
