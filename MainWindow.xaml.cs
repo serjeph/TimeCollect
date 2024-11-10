@@ -4,7 +4,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
+using TimeCollect.ViewModels;
 
 namespace TimeCollect
 {
@@ -13,71 +13,81 @@ namespace TimeCollect
     /// </summary>
     public partial class MainWindow : Window
     {
+        private readonly MainViewModel viewModel;
+        private readonly string employeeFilePath;
+
         public MainWindow()
         {
-            DataContext = new MainViewModel();
-            ((MainViewModel)DataContext).LoadCredentials();
-            InitializeComponent();
 
-            // Attach event handlers to PasswordBoxes
-            databasePasswordBox.PasswordChanged += DatabasePasswordBox_PasswordChanged;
-            clientSecretPasswordBox.PasswordChanged += ClientSecretPasswordBox_PasswordChanged;
+            viewModel = new MainViewModel();
+            DataContext = viewModel;
+
+            viewModel.LoadCredentials();
+            viewModel.LoadSheetNames();
 
             string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            employeeFilePath = Path.Combine(appDataPath, "TimeCollect", "employees.json");
 
+            LoadEmployeeData();
+            InitializeComponent();
 
-            // Load employee data from fole (if it exists)
-            string employeeFilePath = Path.Combine(appDataPath, "TimeCollect", "employees.json");
+            Closing += Window_Closing;
+            databasePasswordBox.PasswordChanged += DatabasePasswordBox_PasswordChanged;
+            clientSecretPasswordBox.PasswordChanged += ClientSecretPasswordBox_PasswordChanged;
+        }
 
+        private void LoadEmployeeData()
+        {
             if (File.Exists(employeeFilePath))
             {
-                Console.WriteLine(employeeFilePath);
                 try
                 {
                     string jsonData = File.ReadAllText(employeeFilePath);
                     var employees = JsonConvert.DeserializeObject<ObservableCollection<Employee>>(jsonData);
+                    viewModel.Employees.Clear();
                     foreach (var employee in employees)
                     {
-                        ((MainViewModel)DataContext).Employees.Add(employee);
+                        viewModel.Employees.Add(employee);
                     }
                 }
                 catch (Exception ex)
                 {
+
                     Console.WriteLine($"Error loading employee data: {ex.Message}");
-                    //throw;
                 }
             }
-            else
-            {
-                // if the file doesn't exist, initialize on empty ObservationCollection
-                ((MainViewModel)DataContext).Employees = new ObservableCollection<Employee>();
-            }
-            //Bind UI elements to ViewModel properties
-            sheetNamesTextBox.SetBinding(TextBox.TextProperty, new Binding("SheetNames"));
-            //outputDirectoryTextBox.SetBinding(TextBox.TextProperty, new Binding("OutputDirectory"));
         }
+
+        private void SaveEmployeeData()
+        {
+            try
+            {
+                string jsonData = JsonConvert.SerializeObject(viewModel.Employees);
+                Directory.CreateDirectory(Path.GetDirectoryName(employeeFilePath));
+                File.WriteAllText(employeeFilePath, jsonData);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving employee data: {ex.Message}");
+            }
+        }
+
+
 
         private void ClearLogButton_Click(object sender, RoutedEventArgs e)
         {
-            logTextBox.Text = ""; //Clear the logTextBoxs
+            viewModel.LogMessages = "";
         }
+
+
+
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            // 1. get the employees data from the viewmodel
-            var employees = ((MainViewModel)DataContext).Employees;
+            SaveEmployeeData();
 
-            // 2. serialize the data to JSON
-            string jsonData = JsonConvert.SerializeObject(employees);
-
-            // 3. save the json to a file
-            string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            string filePath = Path.Combine(appDataPath, "TimeCollect", "employees.json");
-            Console.WriteLine(filePath);
-            // Ensuring the directory exists
-            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
-
-            File.WriteAllText(filePath, jsonData);
+            viewModel.SheetNames = new ObservableCollection<string>(viewModel.SheetNamesForUI.Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries));
+            viewModel.SaveSheetNames();
         }
 
         private void LogTextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -87,7 +97,7 @@ namespace TimeCollect
 
         private void ClientSecretPasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
         {
-            if (sender is PasswordBox passwordBox && DataContext is MainViewModel viewModel)
+            if (sender is PasswordBox passwordBox)
             {
                 viewModel.ClientSecret = passwordBox.SecurePassword;
             }
@@ -95,7 +105,7 @@ namespace TimeCollect
 
         private void DatabasePasswordBox_PasswordChanged(object sender, RoutedEventArgs e)
         {
-            if (sender is PasswordBox passwordBox && DataContext is MainViewModel viewModel)
+            if (sender is PasswordBox passwordBox)
             {
                 viewModel.DatabasePassword = passwordBox.SecurePassword;
             }

@@ -15,10 +15,12 @@ using TimeCollect.Helpers;
 using TimeCollect.Models;
 using TimeCollect.Services;
 
-namespace TimeCollect
+namespace TimeCollect.ViewModels
 {
     public class MainViewModel : INotifyPropertyChanged
     {
+        private SheetNamesList _sheetNamesList;
+        public ObservableCollection<string> SheetNames { get; set; }
 
         private readonly string _credentialsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", "credentials.json");
         private readonly string _googleCredentialsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", "googlecredentials.json");
@@ -65,17 +67,6 @@ namespace TimeCollect
             }
         }
 
-        private string _sheetNames;
-        public string SheetNames
-        {
-            get => _sheetNames;
-            set
-            {
-                _sheetNames = value;
-                OnPropertyChanged(nameof(SheetNames));
-            }
-        }
-
         private string _outputDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "TimeCollect");
         public string OutputDirectory
         {
@@ -98,8 +89,8 @@ namespace TimeCollect
             }
         }
 
-        private Visibility _isLoading = Visibility.Collapsed;
-        public Visibility IsLoading
+        private bool _isLoading;
+        public bool IsLoading
         {
             get => _isLoading;
             set
@@ -120,13 +111,25 @@ namespace TimeCollect
             }
         }
 
+
+        public string SheetNamesForUI
+        {
+            get => _sheetNamesList.SheetNamesAsString;
+            set
+            {
+                _sheetNamesList.SheetNames = new ObservableCollection<string>(value.Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries));
+                OnPropertyChanged(nameof(SheetNamesForUI));
+            }
+        }
         // Constructor
         public MainViewModel()
         {
+
+            _sheetNamesList = new SheetNamesList();
+            SheetNamesForUI = _sheetNamesList.SheetNamesAsString;
+            SheetNames = new ObservableCollection<string>(_sheetNamesList.SheetNames);
+
             Employees = new ObservableCollection<Employee>();
-#if DEBUG
-            SheetNames = "202409,202410";
-#endif
 
             // Load employee data from file
             string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
@@ -193,18 +196,39 @@ namespace TimeCollect
         }
 
 
+        public void LoadSheetNames()
+        {
+            _sheetNamesList = SheetNamesList.LoadFromJson();
+
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                SheetNames.Clear();
+                foreach (var name in _sheetNamesList.SheetNames)
+                {
+                    SheetNames.Add(name);
+                }
+            });
+
+        }
+
+        public void SaveSheetNames()
+        {
+            _sheetNamesList.SheetNames = new ObservableCollection<string>(SheetNames);
+            _sheetNamesList.SaveToJson();
+        }
+
         private async Task RunData()
         {
+
             LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Data Processing Started...\n";
             try
             {
                 IsRunEnabled = false;
-                IsLoading = Visibility.Visible;
+                IsLoading = true;
 
                 var service = await _googleSheetsService.CreateSheetsService();
 
                 var allCleanedData = new List<IList<object>>();
-                var sheetNames = SheetNames.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
 
                 string outputDirectory = OutputDirectory;
                 if (!Directory.Exists(outputDirectory))
@@ -212,7 +236,7 @@ namespace TimeCollect
                     Directory.CreateDirectory(outputDirectory);
                 }
 
-                foreach (var sheetName in sheetNames)
+                foreach (var sheetName in SheetNames)
                 {
                     int uuid = 0;
                     var sheetData = new List<IList<object>>();
@@ -360,8 +384,9 @@ namespace TimeCollect
             finally
             {
                 IsRunEnabled = true;
-                IsLoading = Visibility.Collapsed;
+                IsLoading = false;
                 LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Data Processing Completed!\n";
+
             }
         }
 
@@ -438,7 +463,8 @@ namespace TimeCollect
 
                 if (plainTextClientSecret != null)
                 {
-                    plainTextClientSecret = null;
+                    plainTextClientSecret = "null";
+                    Console.WriteLine(plainTextClientSecret);
                     // Consider using garbage collector method
                 }
             }
@@ -525,8 +551,8 @@ namespace TimeCollect
                 // Important: clear the plain text password
                 if (plainTextPassword != null)
                 {
-                    plainTextPassword = null;
-                    // TODO: consider using garbage collection
+                    plainTextPassword = "null";
+                    Console.WriteLine(plainTextPassword);
                 }
             }
         }

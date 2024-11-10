@@ -103,6 +103,7 @@
         </Style>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <converters:BoolToIsRunEnabledConverter x:Key="BoolToIsRunEnabledConverter"/>
+        <converters:SheetNamesConverter x:Key="SheetNamesConverter"/>
     </Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
@@ -156,8 +157,7 @@
                     <Button x:Name="runButton" Grid.Row="1" Content="Run" Command="{Binding RunDataCommand}" IsEnabled="{Binding IsRunEnabled, Converter={StaticResource BoolToIsRunEnabledConverter}}"
                             Height="35" Width="100"/>
                         
-                    <ProgressBar x:Name="progressBar" Grid.Row="1" Grid.ColumnSpan="2" Height="10" Margin="10,5" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                    <controls:LoadingIndicator x:Name="loadingIndicator" Grid.Row="1" Grid.ColumnSpan="2" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}" />
+                    <controls:LoadingIndicator x:Name="loadingIndicator" Grid.Row="2" Grid.ColumnSpan="2" Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}" />
 
                     </StackPanel>
                     <TextBox x:Name="logTextBox" Grid.Row="2" Grid.ColumnSpan="2" IsReadOnly="True" 
@@ -214,11 +214,14 @@
                 </StackPanel>
             </TabItem>
             <TabItem Header="Sheet Names">
-                <TextBox x:Name="sheetNamesTextBox" Height="35" VerticalAlignment="Top"/>
+                <StackPanel Orientation="Vertical" Margin="10" VerticalAlignment="Top">
+                    <TextBlock Text="Provide sheetnames separated by comma." HorizontalAlignment="Left"/>
+                    <TextBox Text="{Binding SheetNamesForUI, Mode=TwoWay}" Height="35" VerticalAlignment="Top" Margin="5"/>
+                </StackPanel>
             </TabItem>
             <TabItem Header="About">
                 <StackPanel Orientation="Vertical" Margin="10" VerticalAlignment="Center">
-                    <TextBlock Text="TimeCollect" FontWeight="Bold" FontSize="16" HorizontalAlignment="Center"/>
+                    <TextBlock Text="TimeCollect" FontWeight="Bold" FontSize="20" HorizontalAlignment="Center"/>
                     <TextBlock Text="Version 1.0" HorizontalAlignment="Center"/>
                     <TextBlock Text="for BPG, by BPG" HorizontalAlignment="Center"/>
                     <TextBlock Text="Developed by: jepmanzanillo" Margin="0,10,0,0" HorizontalAlignment="Center"/>
