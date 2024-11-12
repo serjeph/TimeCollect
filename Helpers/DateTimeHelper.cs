@@ -8,15 +8,14 @@ namespace TimeCollect.Helpers
 {
     public static class DateTimeHelper
     {
-        public static string GetWeekType(string dateString, string filename = "weekType.json")
+        public static string GetWeekType(int year, int month, int day, string filename = "weekType.json")
         {
-            string weekTypeFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", filename);
             try
             {
-                string json = File.ReadAllText(weekTypeFilePath);
+                string json = File.ReadAllText(filename);
                 Dictionary<string, string> weekTypes = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
 
-                DateTime dateObject = DateTime.ParseExact(dateString, "yyyy-M-d", null);
+                DateTime dateObject = new DateTime(year, month, day); //To create DateTime object directly
 
                 CultureInfo culture = CultureInfo.CurrentCulture;
                 Calendar calendar = culture.Calendar;
@@ -24,23 +23,18 @@ namespace TimeCollect.Helpers
                 DayOfWeek firstDayOfWeek = culture.DateTimeFormat.FirstDayOfWeek;
                 int weekNumber = calendar.GetWeekOfYear(dateObject, weekRule, firstDayOfWeek);
 
-                if (weekTypes.ContainsKey(weekNumber.ToString()))
-                {
-                    return weekTypes[weekNumber.ToString()];
-                }
-                else
-                {
-                    return null;
-                }
+                return weekTypes.TryGetValue(weekNumber.ToString(), out string weekType) ? weekType : "not found";
+
+
             }
             catch (FileNotFoundException)
             {
-                Console.WriteLine("JSON file missing.");
+                Console.WriteLine("JSON file not found/.");
                 return null;
             }
             catch (JsonReaderException)
             {
-                Console.WriteLine($"Invalid JSON");
+                Console.WriteLine("Invalid JSON");
                 return null;
             }
         }

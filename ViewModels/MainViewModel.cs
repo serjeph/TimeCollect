@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using ClosedXML.Excel;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -19,6 +20,10 @@ namespace TimeCollect.ViewModels
 {
     public class MainViewModel : INotifyPropertyChanged
     {
+        public ObservableCollection<WeekType> WeekTypes { get; set; }
+        public ICommand SaveWeekTypeCommand { get; set; }
+        private readonly string _weekTypePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", "weekType.json");
+
         private SheetNamesList _sheetNamesList;
         public ObservableCollection<string> SheetNames { get; set; }
 
@@ -124,6 +129,9 @@ namespace TimeCollect.ViewModels
         // Constructor
         public MainViewModel()
         {
+            WeekTypes = new ObservableCollection<WeekType>();
+            SaveWeekTypeCommand = new RelayCommand(SaveWeekTypeData);
+            LoadWeekTypeData();
 
             _sheetNamesList = new SheetNamesList();
             SheetNamesForUI = _sheetNamesList.SheetNamesAsString;
@@ -195,6 +203,51 @@ namespace TimeCollect.ViewModels
             }
         }
 
+
+        private void LoadWeekTypeData()
+        {
+            if (File.Exists(_weekTypePath))
+            {
+                try
+                {
+                    string json = File.ReadAllText(_weekTypePath);
+                    var weekTypes = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+
+                    //Load data from weekType.json
+                    foreach (var kvp in weekTypes)
+                    {
+                        WeekTypes.Add(new WeekType { WeekNumber = int.Parse(kvp.Key), WeekTypeName = kvp.Value });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Error loading week type data: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            else
+            {
+                // If the file doesn't exists, create default week numbers
+                for (int i = 1; i <= 53; i++)
+                {
+                    WeekTypes.Add(new WeekType { WeekNumber = i });
+                }
+            }
+        }
+
+        private void SaveWeekTypeData()
+        {
+            try
+            {
+                var weekTypeDict = WeekTypes.ToDictionary(w => w.WeekNumber.ToString(), w => w.WeekTypeName);
+                string json = JsonConvert.SerializeObject(weekTypeDict, Formatting.Indented);
+                File.WriteAllText(_weekTypePath, json);
+                MessageBox.Show("Week type data saved sucessfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error saving week type data: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
         public void LoadSheetNames()
         {
@@ -302,7 +355,7 @@ namespace TimeCollect.ViewModels
                                     int month = int.Parse(employeeData[row + 2][1].ToString());
                                     int day = int.Parse(employeeData[row + 2][2].ToString());
 
-                                    string weekType = DateTimeHelper.GetWeekType($"{year}-{month}-{day}");
+                                    string weekType = DateTimeHelper.GetWeekType(year, month, day);
                                     string isActual = DateHelper.IsActual($"{year}-{month}-{day}");
 
                                     transformedValues.Add(new List<object>()
@@ -352,6 +405,10 @@ namespace TimeCollect.ViewModels
                     }
                 }
 
+                string combinedFilePath = Path.Combine(outputDirectory, "combined_output.xlsx");
+                CombineExcelFiles(SheetNames, outputDirectory, combinedFilePath);
+                LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Combined output location: {outputDirectory} \n";
+
                 if (allCleanedData.Count > 0)
                 {
                     var columnHeaders = new List<string>
@@ -387,6 +444,40 @@ namespace TimeCollect.ViewModels
                 IsLoading = false;
                 LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Data Processing Completed!\n";
 
+            }
+        }
+
+        private void CombineExcelFiles(ObservableCollection<string> SheetNames, string outputDirectory, string combinedFilePath)
+        {
+            try
+            {
+                if (File.Exists(combinedFilePath))
+                {
+                    File.Delete(combinedFilePath);
+                }
+
+                using (var combinedWorkbook = new XLWorkbook())
+                {
+                    var sheetNames = SheetNames.ToList();
+                    foreach (var sheetName in sheetNames)
+                    {
+                        string sheetFilePath = Path.Combine(outputDirectory, $"output_{sheetName}.xlsx");
+                        using (var sheetWorkbook = new XLWorkbook(sheetFilePath))
+                        {
+                            var worksheet = sheetWorkbook.Worksheet(1); // Get the first worksheet
+                            worksheet.CopyTo(combinedWorkbook, sheetName); //Copy to the combined workbook
+                        }
+                    }
+
+                    combinedWorkbook.SaveAs(combinedFilePath);
+                }
+                LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] All monthly data was exported to {combinedFilePath}\n";
+
+            }
+            catch (Exception ex)
+            {
+
+                MessageBox.Show($"Error combining Excel files: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
