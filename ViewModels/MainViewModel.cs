@@ -103,14 +103,14 @@ namespace TimeCollect.ViewModels
             }
         }
 
-        private bool _isRunEnabled = true;
-        public bool IsRunEnabled
+        private bool _isRunning = false;
+        public bool IsRunning
         {
-            get => _isRunEnabled;
+            get => _isRunning;
             set
             {
-                _isRunEnabled = value;
-                OnPropertyChanged(nameof(IsRunEnabled));
+                _isRunning = value;
+                OnPropertyChanged(nameof(IsRunning));
             }
         }
 
@@ -203,7 +203,7 @@ namespace TimeCollect.ViewModels
             LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Timesheet Collection Started...\n";
             try
             {
-                IsRunEnabled = false;
+                IsRunning = true;
                 IsLoading = true;
 
                 var service = await _googleSheetsService.CreateSheetsService();
@@ -368,7 +368,7 @@ namespace TimeCollect.ViewModels
             }
             finally
             {
-                IsRunEnabled = true;
+                IsRunning = false;
                 IsLoading = false;
                 LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Data Processing Completed!\n";
                 ExportLog();

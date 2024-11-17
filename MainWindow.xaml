@@ -106,6 +106,7 @@
         </Style>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <converters:BoolToIsRunEnabledConverter x:Key="BoolToIsRunEnabledConverter"/>
+        <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
     </Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
@@ -163,7 +164,7 @@
                     <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom">
 
                         <Button x:Name="runButton" Grid.Row="1" Content="Run" Command="{Binding RunDataCommand}" 
-                                Visibility="{Binding IsRunEnabled, Converter={StaticResource BoolToIsRunEnabledConverter}}"
+                                Visibility="{Binding IsRunning, Converter={StaticResource InverseBoolToVisibilityConverter}}"
                                 Height="35" Width="100"/>
                         
                         <controls:LoadingIndicator x:Name="loadingIndicator" Grid.Row="2" Grid.ColumnSpan="2" 

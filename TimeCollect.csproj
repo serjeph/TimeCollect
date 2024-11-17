@@ -95,6 +95,7 @@
     </ApplicationDefinition>
     <Compile Include="Converters\BoolToIsRunEnabledConverter.cs" />
     <Compile Include="Converters\BoolToVisibilityConverter.cs" />
+    <Compile Include="Converters\InverseBoolToVisibilityConverter.cs" />
     <Compile Include="Helpers\DateHelper.cs" />
     <Compile Include="Helpers\DateTimeHelper.cs" />
     <Compile Include="Helpers\ExcelHelper.cs" />

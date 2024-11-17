@@ -5,9 +5,10 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:TimeCollect"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
+             d:DesignHeight="200" d:DesignWidth="800">
     <Grid>
-        <ProgressBar IsIndeterminate="True" />
-        <TextBlock Text="Data Processing..." HorizontalAlignment="Center" VerticalAlignment="Center" Width="300" TextAlignment="Center" Height="35" />
+        
+        <TextBlock Text="Collecting Timesheet Data..." HorizontalAlignment="Center" VerticalAlignment="Top" Width="600" TextAlignment="Center" Height="40" Margin="10,5"/>
+        <ProgressBar IsIndeterminate="True" VerticalAlignment="Bottom"/>
     </Grid>
 </UserControl>
