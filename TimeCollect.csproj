@@ -104,9 +104,11 @@
     </Compile>
     <Compile Include="Commands\RelayCommand.cs" />
     <Compile Include="Helpers\PasswordBoxHelper.cs" />
+    <Compile Include="Helpers\Security.cs" />
     <Compile Include="Helpers\WeekTypeHelper.cs" />
     <Compile Include="Models\DatabaseSettings.cs" />
     <Compile Include="Models\GoogleCredentials.cs" />
+    <Compile Include="Models\Project.cs" />
     <Compile Include="Models\SheetNamesList.cs" />
     <Compile Include="Models\WeekType.cs" />
     <Compile Include="ValidationRules\RequiredValidationRule.cs" />

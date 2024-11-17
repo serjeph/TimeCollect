@@ -25,6 +25,7 @@ namespace TimeCollect.ViewModels
         private readonly string _googleCredentialsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", "googlecredentials.json");
         private readonly string _sheetNamesFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", "sheetNames.json");
         private readonly string _weekNamesFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", "weekNames.json");
+        private readonly string _projectDataFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", "projectData.json");
 
         private readonly GoogleSheetsService _googleSheetsService;
         //private readonly DatabaseService _databaseService;
@@ -33,6 +34,7 @@ namespace TimeCollect.ViewModels
         public ObservableCollection<WeekType> WeekTypes { get; set; }
         public ObservableCollection<SheetNamesList> SheetNames { get; set; }
         public ObservableCollection<Employee> Employees { get; set; }
+        public ObservableCollection<Project> Projects { get; set; }
 
 
         public string DatabaseHost { get; set; } = "localhost"; // Default host
@@ -50,6 +52,8 @@ namespace TimeCollect.ViewModels
         public ICommand ExportLogCommand { get; set; }
         public ICommand SaveWeekTypeCommand { get; set; }
         public ICommand ReloadWeekTypeCommand { get; set; }
+        public ICommand LoadProjectDataCommand { get; set; }
+        public ICommand SaveProjectDataCommand { get; set; }
 
 
 
@@ -140,25 +144,34 @@ namespace TimeCollect.ViewModels
         // Constructor
         public MainViewModel()
         {
+            if (File.Exists(_projectDataFilePath))
+            {
+                File.Delete(_projectDataFilePath);
+            }
             // Load employee data from file
             string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             string employeeFilePath = Path.Combine(appDataPath, "TimeCollect", "employees.json");
             string sheetNamesFilePath = Path.Combine(appDataPath, "TimeCollect", "sheetNames.json");
 
+            //Security.CreateDirectoryAccess(appDataPath);
 
             // Initialize collections
             WeekTypes = new ObservableCollection<WeekType>();
             SheetNames = new ObservableCollection<SheetNamesList>();
             Employees = new ObservableCollection<Employee>();
+            Projects = new ObservableCollection<Project>();
 
             // Initialize UI commands
             RunDataCommand = new RelayCommand(async () => await RunData());
+            LoadProjectDataCommand = new RelayCommand(async () => await LoadProjectData());
             SaveCredentialsCommand = new RelayCommand(SaveCredentials);
             SaveDatabaseSettingsCommand = new RelayCommand(SaveDatabaseSettings);
             ExportLogCommand = new RelayCommand(ExportLog);
             SaveWeekTypeCommand = new RelayCommand(SaveWeekTypeData);
             SaveSheetNamesCommand = new RelayCommand(SaveSheetNames);
             ReloadWeekTypeCommand = new RelayCommand(ReloadWeekType);
+            SaveProjectDataCommand = new RelayCommand(SaveProjectData);
+
 
             // Initialize services
             _googleSheetsService = new GoogleSheetsService(_credentialsPath);
@@ -184,27 +197,16 @@ namespace TimeCollect.ViewModels
         private async Task RunData()
         {
 
-            var columnHeaders = new List<string>
-                    {
-                        "uuid",
-                        "社員番号",
-                        "年",
-                        "月",
-                        "日",
-                        "WeekType",
-                        "名前",
-                        "工号",
-                        "種別",
-                        "間接/直接",
-                        "原寸/3D/管理",
-                        "時間"
-                    };
 
             LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Timesheet Collection Started...\n";
             try
             {
                 IsRunning = true;
                 IsLoading = true;
+
+                await LoadProjectData();
+                SaveProjectData();
+
 
                 var service = await _googleSheetsService.CreateSheetsService();
 
@@ -219,6 +221,22 @@ namespace TimeCollect.ViewModels
                 var sheetNames = SheetNames.ToList();
                 foreach (var sheetName in sheetNames)
                 {
+                    var columnHeaders = new List<string>
+                    {
+                        $"{sheetName.SheetName}",
+                        "社員番号",
+                        "年",
+                        "月",
+                        "日",
+                        "WeekType",
+                        "名前",
+                        "工号",
+                        "種別",
+                        "間接/直接",
+                        "原寸/3D/管理",
+                        "時間"
+                    };
+
                     int uuid = 0;
                     var sheetData = new List<IList<object>>();
                     var transformedValues = new List<IList<object>>();
@@ -355,6 +373,21 @@ namespace TimeCollect.ViewModels
 
                 if (allCleanedData.Count > 0)
                 {
+                    var columnHeaders = new List<string>
+                    {
+                        "AllSheets",
+                        "社員番号",
+                        "年",
+                        "月",
+                        "日",
+                        "WeekType",
+                        "名前",
+                        "工号",
+                        "種別",
+                        "間接/直接",
+                        "原寸/3D/管理",
+                        "時間"
+                    };
 
                     ExcelHelper.ExportToExcel(allCleanedData, "AllSheets", Path.Combine(outputDirectory, "output_all_sheets.xlsx"), columnHeaders);
                     LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Data exported to excel file: {outputDirectory} \n";
@@ -372,6 +405,58 @@ namespace TimeCollect.ViewModels
                 IsLoading = false;
                 LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Data Processing Completed!\n";
                 ExportLog();
+            }
+        }
+
+        private void SaveProjectData()
+        {
+            try
+            {
+                string json = JsonConvert.SerializeObject(Projects, Formatting.Indented);
+                Directory.CreateDirectory(Path.GetDirectoryName(_projectDataFilePath));
+                File.WriteAllText(_projectDataFilePath, json);
+                LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Project data saved successfully!\n";
+            }
+            catch (Exception ex)
+            {
+                LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Error saving project data: {ex.Message}\n";
+            }
+        }
+
+
+        private async Task LoadProjectData()
+        {
+            LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Loading Project Information...\n";
+            Projects.Clear();
+            try
+            {
+                var service = await _googleSheetsService.CreateSheetsService();
+                var range = "projectDB!A2:C400";
+                var request = service.Spreadsheets.Values.Get("1_7VPq7ayKIy62s9xf_VCy242bHWDD4poIuzaleoVc9g", range);
+                var response = await request.ExecuteAsync();
+                var values = response.Values;
+
+                foreach (var value in values)
+                {
+                    if (value[0].ToString() != string.Empty)
+                    {
+                        Projects.Add(new Project()
+                        {
+                            ProjectCode = value[0].ToString(),
+                            ProjectName = value[1].ToString(),
+                            ProjectClient = value[2].ToString()
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Error loading project data: {ex.Message}\n";
+                MessageBox.Show($"Error loading project data: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Project Information Loaded.\n";
             }
         }
 

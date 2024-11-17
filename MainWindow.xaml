@@ -180,6 +180,35 @@
                     <Button x:Name="clearLogButton" Grid.Row="3" Grid.ColumnSpan="1" Content="Clear Log" Click="ClearLogButton_Click" Height="35" Width="100" HorizontalAlignment="Right" />
                 </Grid>
             </TabItem>
+            <TabItem Header="Projects">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <DataGrid x:Name="projectDataGrid" ItemsSource="{Binding Projects}" Grid.Row="0"  Grid.ColumnSpan="3" AutoGenerateColumns="False" IsReadOnly="True">
+                        <DataGrid.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="HorizontalAlignment" Value="Left" />
+                            </Style>
+                        </DataGrid.CellStyle>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Project Code" Binding="{Binding ProjectCode}" Width="Auto"/>
+                            <DataGridTextColumn Header="Project Name" Binding="{Binding ProjectName}" Width="Auto"/>
+                            <DataGridTextColumn Header="Client" Binding="{Binding ProjectClient}" Width="Auto"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <Button x:Name="loadProjectsButton" Content="Load Project Data" Command="{Binding LoadProjectDataCommand}"
+                            HorizontalAlignment="Left" Margin="10" Grid.Row="1" Grid.Column="0" Width="150" VerticalAlignment="Bottom" Height="35"/>
+                    <Button x:Name="saveProjectDataButton" Content="Save Project Data" Command="{Binding SaveProjectDataCommand}"
+                            HorizontalAlignment="Right" Margin="10" Grid.Row="1" Grid.Column="0" Width="150" VerticalAlignment="Bottom" Height="35" />
+                </Grid>
+            </TabItem>
             <TabItem Header="Week Types">
                 <Grid>
                     <Grid.RowDefinitions>
