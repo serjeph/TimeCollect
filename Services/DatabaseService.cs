@@ -20,14 +20,14 @@ namespace TimeCollect.Services
                 $"Port={settings.Port};";
         }
 
-        public void InsertData(IList<IList<object>> data, string sheetName)
+        public void InsertData(IList<IList<object>> data, string sheetName, ref string logMessages)
         {
             try
             {
                 string tableName = $"timesheet_{sheetName}";
 
                 // Create table if it does not exist
-                CreateTableIfNotExists(tableName);
+                CreateTableIfNotExists(tableName, ref logMessages);
 
                 using (var conn = new NpgsqlConnection(_connectionString))
                 {
@@ -110,14 +110,17 @@ namespace TimeCollect.Services
                             cmd.Parameters["worked_hours"].Value = Convert.ToDecimal(rowData[12]);
 
                             cmd.ExecuteNonQuery();
+
+
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"An error occurred while inserting into the database: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                logMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] An error occurred while inserting into the database: {ex.Message}\n";
             }
+
         }
 
         public List<string> GetColumnHeaders(string tableName)
@@ -151,7 +154,7 @@ namespace TimeCollect.Services
             return columnHeaders;
         }
 
-        private void CreateTableIfNotExists(string tableName)
+        private void CreateTableIfNotExists(string tableName, ref string logMessages)
         {
             try
             {
@@ -183,7 +186,7 @@ namespace TimeCollect.Services
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error creating table: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                logMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Error creating table: {ex.Message}\n";
             }
         }
 

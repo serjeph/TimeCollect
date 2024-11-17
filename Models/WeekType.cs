@@ -1,8 +1,13 @@
-﻿namespace TimeCollect.Models
+﻿using System;
+
+namespace TimeCollect.Models
 {
     public class WeekType
     {
-        public int WeekNumber { get; set; }
+        public DateTime DateStart { get; set; }
+        public DateTime DateEnd { get; set; }
+        public string WeekName { get; set; }
         public string WeekTypeName { get; set; }
+
     }
 }

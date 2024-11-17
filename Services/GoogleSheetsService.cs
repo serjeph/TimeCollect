@@ -4,7 +4,6 @@ using Google.Apis.Sheets.v4;
 using Google.Apis.Util.Store;
 using System;
 using System.IO;
-using System.Security.AccessControl;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -16,8 +15,6 @@ namespace TimeCollect.Services
     public class GoogleSheetsService
     {
         private readonly string _credentialsPath;
-
-
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GoogleSheetsService"/> class.
@@ -55,8 +52,6 @@ namespace TimeCollect.Services
                 string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
                 string installDirectory = Path.Combine(appDataPath, "TimeCollect");
 
-                //Grant permissions to the directory
-                GrantPermissionsToDirectory(installDirectory);
 
                 string tokenFilePath = Path.Combine(installDirectory, "token.json");
 
@@ -68,35 +63,6 @@ namespace TimeCollect.Services
                     new FileDataStore(tokenFilePath, true));
             }
 
-        }
-
-        private static void GrantPermissionsToDirectory(string directoryPath)
-        {
-            try
-            {
-                // Get the current user's security identifier (SID)
-                string userSid = System.Security.Principal.WindowsIdentity.GetCurrent().User.Value;
-
-                // create a new DirectorySecurity object for the directory
-                DirectorySecurity directorySecurity = Directory.GetAccessControl(directoryPath);
-
-                // Add a FileSystemAccessRule to grant the current user full control
-                FileSystemAccessRule accessRule = new FileSystemAccessRule(
-                    userSid,
-                    FileSystemRights.FullControl,
-                    InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
-                    PropagationFlags.None,
-                    AccessControlType.Allow);
-                directorySecurity.AddAccessRule(accessRule);
-
-                // set the new access control list for the directory
-                Directory.SetAccessControl(directoryPath, directorySecurity);
-            }
-            catch (Exception ex)
-            {
-                // Handle the exception approriately (e.g., log it or display a message)
-                Console.WriteLine($"Error granting permissions to directory: {ex.Message}");
-            }
         }
     }
 }

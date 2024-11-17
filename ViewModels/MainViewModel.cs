@@ -1,13 +1,12 @@
 ﻿using ClosedXML.Excel;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Security;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -20,35 +19,26 @@ namespace TimeCollect.ViewModels
 {
     public class MainViewModel : INotifyPropertyChanged
     {
-        public ObservableCollection<WeekType> WeekTypes { get; set; }
-        public ICommand SaveWeekTypeCommand { get; set; }
-        private readonly string _weekTypePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", "weekType.json");
 
-        private SheetNamesList _sheetNamesList;
-        public ObservableCollection<string> SheetNames { get; set; }
 
         private readonly string _credentialsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", "credentials.json");
         private readonly string _googleCredentialsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", "googlecredentials.json");
-        private readonly GoogleSheetsService _googleSheetsService;
-        private readonly DatabaseService _databaseService;
+        private readonly string _sheetNamesFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", "sheetNames.json");
+        private readonly string _weekNamesFilePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", "weekNames.json");
 
+        private readonly GoogleSheetsService _googleSheetsService;
+        //private readonly DatabaseService _databaseService;
+
+        // to be bound with xaml
+        public ObservableCollection<WeekType> WeekTypes { get; set; }
+        public ObservableCollection<SheetNamesList> SheetNames { get; set; }
         public ObservableCollection<Employee> Employees { get; set; }
+
 
         public string DatabaseHost { get; set; } = "localhost"; // Default host
         public string DatabaseName { get; set; }
         public string DatabaseUsername { get; set; } = "postgres"; // Default username
-
-        private SecureString _databasePassword;
-        public SecureString DatabasePassword
-        {
-            get => _databasePassword;
-            set
-            {
-                _databasePassword = value;
-                OnPropertyChanged(nameof(DatabasePassword));
-            }
-        }
-
+        public string DatabasePassword { get; set; }
         public int DatabasePort { get; set; } = 5433; // Default port
         private readonly string _databaseSettingsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TimeCollect", "database_settings.json");
 
@@ -56,13 +46,37 @@ namespace TimeCollect.ViewModels
         public ICommand RunDataCommand { get; set; }
         public ICommand SaveCredentialsCommand { get; set; }
         public ICommand SaveDatabaseSettingsCommand { get; set; }
+        public ICommand SaveSheetNamesCommand { get; set; }
+        public ICommand ExportLogCommand { get; set; }
+        public ICommand SaveWeekTypeCommand { get; set; }
+        public ICommand ReloadWeekTypeCommand { get; set; }
 
 
-        public string ClientId { get; set; }
-        public string ProjectId { get; set; }
 
-        private SecureString _clientSecret;
-        public SecureString ClientSecret
+
+        private string _clientId;
+        public string ClientId
+        {
+            get => _clientId;
+            set
+            {
+                _clientId = value;
+                OnPropertyChanged(nameof(ClientId));
+            }
+        }
+        private string _projectId;
+        public string ProjectId
+        {
+            get => _projectId;
+            set
+            {
+                _projectId = value;
+                OnPropertyChanged(nameof(ProjectId));
+            }
+        }
+
+        private string _clientSecret;
+        public string ClientSecret
         {
             get => _clientSecret;
             set
@@ -71,6 +85,12 @@ namespace TimeCollect.ViewModels
                 OnPropertyChanged(nameof(ClientSecret));
             }
         }
+
+
+
+        public DateTime YearStartDate { get; set; } = new DateTime(2023, 12, 31); // Default date
+
+
 
         private string _outputDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "TimeCollect");
         public string OutputDirectory
@@ -117,163 +137,70 @@ namespace TimeCollect.ViewModels
         }
 
 
-        public string SheetNamesForUI
-        {
-            get => _sheetNamesList.SheetNamesAsString;
-            set
-            {
-                _sheetNamesList.SheetNames = new ObservableCollection<string>(value.Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries));
-                OnPropertyChanged(nameof(SheetNamesForUI));
-            }
-        }
         // Constructor
         public MainViewModel()
         {
-            WeekTypes = new ObservableCollection<WeekType>();
-            SaveWeekTypeCommand = new RelayCommand(SaveWeekTypeData);
-            LoadWeekTypeData();
-
-            _sheetNamesList = new SheetNamesList();
-            SheetNamesForUI = _sheetNamesList.SheetNamesAsString;
-            SheetNames = new ObservableCollection<string>(_sheetNamesList.SheetNames);
-
-            Employees = new ObservableCollection<Employee>();
-
             // Load employee data from file
             string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             string employeeFilePath = Path.Combine(appDataPath, "TimeCollect", "employees.json");
+            string sheetNamesFilePath = Path.Combine(appDataPath, "TimeCollect", "sheetNames.json");
 
 
+            // Initialize collections
+            WeekTypes = new ObservableCollection<WeekType>();
+            SheetNames = new ObservableCollection<SheetNamesList>();
+            Employees = new ObservableCollection<Employee>();
+
+            // Initialize UI commands
             RunDataCommand = new RelayCommand(async () => await RunData());
             SaveCredentialsCommand = new RelayCommand(SaveCredentials);
             SaveDatabaseSettingsCommand = new RelayCommand(SaveDatabaseSettings);
+            ExportLogCommand = new RelayCommand(ExportLog);
+            SaveWeekTypeCommand = new RelayCommand(SaveWeekTypeData);
+            SaveSheetNamesCommand = new RelayCommand(SaveSheetNames);
+            ReloadWeekTypeCommand = new RelayCommand(ReloadWeekType);
 
+            // Initialize services
             _googleSheetsService = new GoogleSheetsService(_credentialsPath);
 
-            if (File.Exists(_databaseSettingsPath))
-            {
-                try
-                {
-                    string json = File.ReadAllText(_databaseSettingsPath);
-                    var settings = JsonConvert.DeserializeObject<DatabaseSettings>(json);
+            //_databaseService = new DatabaseService(new DatabaseSettings
+            //{
+            //    Host = DatabaseHost,
+            //    Database = DatabaseName,
+            //    Username = DatabaseUsername,
+            //    Password = DatabasePassword,
+            //    Port = DatabasePort
+            //});
 
-                    DatabaseHost = settings.Host;
-                    DatabaseName = settings.Database;
-                    DatabaseUsername = settings.Username;
-
-                    // DatabasePassword as SecureString
-                    DatabasePassword = ConvertToSecureString(settings.Password);
-
-                    DatabasePort = settings.Port;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error loading database settings: {ex.Message}");
-                    throw;
-                }
-            }
-
-
-            SecureString secureDatabasePassword = DatabasePassword;
-            IntPtr unmanagedString = IntPtr.Zero;
-            string plainTextDatabasePassword = null; // initiate lang muna
-            try
-            {
-                unmanagedString = Marshal.SecureStringToGlobalAllocUnicode(secureDatabasePassword);
-                plainTextDatabasePassword = Marshal.PtrToStringUni(unmanagedString);
-
-                _databaseService = new DatabaseService(new DatabaseSettings
-                {
-                    Host = DatabaseHost,
-                    Database = DatabaseName,
-                    Username = DatabaseUsername,
-                    Password = plainTextDatabasePassword,
-                    Port = DatabasePort
-                });
-            }
-            finally
-            {
-                Marshal.ZeroFreeGlobalAllocUnicode(unmanagedString);
-
-                if (plainTextDatabasePassword != null)
-                {
-                    plainTextDatabasePassword = null;
-                    // consider using garbage collector
-                }
-            }
+            // Load data
+            LoadYearStartDate();
+            LoadWeekTypeData();
+            LoadDatabaseSettings();
+            LoadCredentials();
+            LoadSheetNamesData();
         }
 
-
-        private void LoadWeekTypeData()
-        {
-            if (File.Exists(_weekTypePath))
-            {
-                try
-                {
-                    string json = File.ReadAllText(_weekTypePath);
-                    var weekTypes = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
-
-                    //Load data from weekType.json
-                    foreach (var kvp in weekTypes)
-                    {
-                        WeekTypes.Add(new WeekType { WeekNumber = int.Parse(kvp.Key), WeekTypeName = kvp.Value });
-                    }
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"Error loading week type data: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-            else
-            {
-                // If the file doesn't exists, create default week numbers
-                for (int i = 1; i <= 53; i++)
-                {
-                    WeekTypes.Add(new WeekType { WeekNumber = i });
-                }
-            }
-        }
-
-        private void SaveWeekTypeData()
-        {
-            try
-            {
-                var weekTypeDict = WeekTypes.ToDictionary(w => w.WeekNumber.ToString(), w => w.WeekTypeName);
-                string json = JsonConvert.SerializeObject(weekTypeDict, Formatting.Indented);
-                File.WriteAllText(_weekTypePath, json);
-                MessageBox.Show("Week type data saved sucessfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error saving week type data: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-            }
-        }
-
-        public void LoadSheetNames()
-        {
-            _sheetNamesList = SheetNamesList.LoadFromJson();
-
-            Application.Current.Dispatcher.Invoke(() =>
-            {
-                SheetNames.Clear();
-                foreach (var name in _sheetNamesList.SheetNames)
-                {
-                    SheetNames.Add(name);
-                }
-            });
-
-        }
-
-        public void SaveSheetNames()
-        {
-            _sheetNamesList.SheetNames = new ObservableCollection<string>(SheetNames);
-            _sheetNamesList.SaveToJson();
-        }
 
         private async Task RunData()
         {
 
-            LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Data Processing Started...\n";
+            var columnHeaders = new List<string>
+                    {
+                        "uuid",
+                        "社員番号",
+                        "年",
+                        "月",
+                        "日",
+                        "WeekType",
+                        "名前",
+                        "工号",
+                        "種別",
+                        "間接/直接",
+                        "原寸/3D/管理",
+                        "時間"
+                    };
+
+            LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Timesheet Collection Started...\n";
             try
             {
                 IsRunEnabled = false;
@@ -289,7 +216,8 @@ namespace TimeCollect.ViewModels
                     Directory.CreateDirectory(outputDirectory);
                 }
 
-                foreach (var sheetName in SheetNames)
+                var sheetNames = SheetNames.ToList();
+                foreach (var sheetName in sheetNames)
                 {
                     int uuid = 0;
                     var sheetData = new List<IList<object>>();
@@ -300,10 +228,25 @@ namespace TimeCollect.ViewModels
                     workType.AddRange(Enumerable.Repeat("間接", 5));
                     workType.AddRange(Enumerable.Repeat("直接", 20));
 
+                    List<string> team = new List<string>();
+                    team.AddRange(Enumerable.Repeat("0.00", 4));
+                    team.AddRange(Enumerable.Repeat("-", 2));
+                    team.AddRange(Enumerable.Repeat("管理", 1));
+                    team.AddRange(Enumerable.Repeat("-", 2));
+                    team.AddRange(Enumerable.Repeat("原寸", 20));
+
+                    List<string> team3D = new List<string>();
+                    team3D.AddRange(Enumerable.Repeat("0.00", 4));
+                    team3D.AddRange(Enumerable.Repeat("-", 2));
+                    team3D.AddRange(Enumerable.Repeat("管理", 1));
+                    team3D.AddRange(Enumerable.Repeat("-", 2));
+                    team3D.AddRange(Enumerable.Repeat("3D", 20));
+
+
                     foreach (var employee in Employees)
                     {
-                        LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{sheetName}]-[{employee.Nickname}] Data fetching...\n";
-                        var range = $"{sheetName}!A7:AR39";
+                        LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{sheetName.SheetName}]-[{employee.Nickname}] Data fetching...\n";
+                        var range = $"{sheetName.SheetName}!A7:AR39";
                         var request = service.Spreadsheets.Values.Get(employee.SpreadsheetId, range);
                         var response = await request.ExecuteAsync();
                         var values = response.Values;
@@ -329,6 +272,7 @@ namespace TimeCollect.ViewModels
                                     }
                                 }
                             }
+
                             employeeData.AddRange(CleanData(values));
 
                             Console.WriteLine(employeeData);
@@ -356,13 +300,12 @@ namespace TimeCollect.ViewModels
                                     int day = int.Parse(employeeData[row + 2][2].ToString());
 
                                     string weekType = DateTimeHelper.GetWeekType(year, month, day);
-                                    string isActual = DateHelper.IsActual($"{year}-{month}-{day}");
+                                    string isActual = DateHelper.IsActual(year, month, day);
 
                                     transformedValues.Add(new List<object>()
                                     {
                                         uuid + 1,
                                         employee.EmployeeId,
-                                        row + 1,
                                         year,
                                         month,
                                         day,
@@ -371,7 +314,7 @@ namespace TimeCollect.ViewModels
                                         employeeData[0][col + 4],
                                         employeeData[1][col + 4],
                                         workType[col + 4],
-                                        isActual,
+                                        employee.Team,
                                         float.Parse(employeeData[row + 2][col + 4].ToString())
                                     });
 
@@ -383,25 +326,26 @@ namespace TimeCollect.ViewModels
                         }
                         else
                         {
-                            LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] No data found for {employee.Nickname} from sheet {sheetName}\n"; ;
+                            LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] No data found for {employee.Nickname} from sheet {sheetName.SheetName}\n"; ;
                         }
 
                         Console.WriteLine(transformedValues);
 
-                        LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{sheetName}]-[{employee.Nickname}] Data fetched...\n";
+                        LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{sheetName.SheetName}]-[{employee.Nickname}] Data fetched...\n";
                     }
 
                     if (transformedValues.Count > 0)
                     {
+
+
+                        ExcelHelper.ExportToExcel(transformedValues, sheetName.SheetName, Path.Combine(outputDirectory, $"output_{sheetName.SheetName}.xlsx"), columnHeaders);
+                        LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{sheetName.SheetName}] Monthly timesheet data was collected to {outputDirectory}\\output_{sheetName.SheetName}.xlsx\n";
+
                         allCleanedData.AddRange(transformedValues);
-
-                        // Get column headers from the database
-                        var columnHeaders = _databaseService.GetColumnHeaders($"timesheet_{sheetName}");
-
-                        ExcelHelper.ExportToExcel(transformedValues, sheetName, Path.Combine(outputDirectory, $"output_{sheetName}.xlsx"), columnHeaders);
-                        LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Monthly data was exported to {outputDirectory}\\output_{sheetName}.xlsx\n";
-                        _databaseService.InsertData(transformedValues, sheetName);
-                        LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Data Uploaded to Database with {transformedValues.Count} rows.\n";
+                        //string logMessages = LogMessages;
+                        //_databaseService.InsertData(transformedValues, sheetName.SheetName, ref logMessages);
+                        //LogMessages = logMessages;
+                        LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Timesheets collected to Excel with {transformedValues.Count} rows.\n";
                     }
                 }
 
@@ -411,22 +355,6 @@ namespace TimeCollect.ViewModels
 
                 if (allCleanedData.Count > 0)
                 {
-                    var columnHeaders = new List<string>
-                    {
-                        "uuid",
-                        "employee_id",
-                        "row_id",
-                        "年",
-                        "月",
-                        "日",
-                        "week_type",
-                        "名前",
-                        "工号",
-                        "task_type",
-                        "work_type",
-                        "is_actual",
-                        "時間"
-                    };
 
                     ExcelHelper.ExportToExcel(allCleanedData, "AllSheets", Path.Combine(outputDirectory, "output_all_sheets.xlsx"), columnHeaders);
                     LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Data exported to excel file: {outputDirectory} \n";
@@ -436,18 +364,131 @@ namespace TimeCollect.ViewModels
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"An error occurred: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] An error occurred: {ex.Message} \n";
             }
             finally
             {
                 IsRunEnabled = true;
                 IsLoading = false;
                 LogMessages += $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] Data Processing Completed!\n";
-
+                ExportLog();
             }
         }
 
-        private void CombineExcelFiles(ObservableCollection<string> SheetNames, string outputDirectory, string combinedFilePath)
+        private void LoadDatabaseSettings()
+        {
+            if (File.Exists(_databaseSettingsPath))
+            {
+                try
+                {
+                    string json = File.ReadAllText(_databaseSettingsPath);
+                    var settings = JsonConvert.DeserializeObject<DatabaseSettings>(json);
+
+                    DatabaseHost = settings.Host;
+                    DatabaseName = settings.Database;
+                    DatabaseUsername = settings.Username;
+                    DatabasePassword = settings.Password;
+                    DatabasePort = settings.Port;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error loading database settings: {ex.Message}");
+                    throw;
+                }
+            }
+        }
+
+        private void ExportLog()
+        {
+            try
+            {
+                string logFilePath = Path.Combine(OutputDirectory, "log.txt");
+                File.WriteAllText(logFilePath, LogMessages);
+                MessageBox.Show($"Log exported to {logFilePath}", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error exporting log: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LoadWeekTypeData()
+        {
+            try
+            {
+                var data = WeekTypeHelper.GetWeekTypes(YearStartDate);
+
+                foreach (var weekType in data)
+                {
+                    WeekTypes.Add(weekType);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading week type data: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+
+        }
+
+        private void LoadYearStartDate()
+        {
+            try
+            {
+                if (File.Exists(_weekNamesFilePath))
+                {
+                    var jsonData = File.ReadAllText(_weekNamesFilePath);
+                    var data = JsonConvert.DeserializeObject<ObservableCollection<WeekType>>(jsonData);
+                    YearStartDate = data[0].DateStart;
+                }
+            }
+            catch (Exception ex)
+            {
+
+                Console.WriteLine($"Error loading year start date: {ex.Message}");
+            }
+        }
+
+        private void SaveWeekTypeData()
+        {
+            try
+            {
+                string jsonData = JsonConvert.SerializeObject(WeekTypes, Formatting.Indented);
+                Directory.CreateDirectory(Path.GetDirectoryName(_weekNamesFilePath));
+                File.WriteAllText(_weekNamesFilePath, jsonData);
+
+                MessageBox.Show("Week type data saved sucessfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error saving week type data: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+
+
+        private void ReloadWeekType()
+        {
+            try
+            {
+                var data = WeekTypeHelper.SetWeekTypes(YearStartDate);
+                WeekTypes.Clear();
+                foreach (var weekType in data)
+                {
+                    WeekTypes.Add(weekType);
+                }
+
+                MessageBox.Show("Week types reloaded sucessfully!", "Sucess", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+
+                Console.WriteLine($"Error reloading week types: {ex.Message}");
+            }
+
+        }
+
+        private void CombineExcelFiles(ObservableCollection<SheetNamesList> SheetNames, string outputDirectory, string combinedFilePath)
         {
             try
             {
@@ -461,11 +502,11 @@ namespace TimeCollect.ViewModels
                     var sheetNames = SheetNames.ToList();
                     foreach (var sheetName in sheetNames)
                     {
-                        string sheetFilePath = Path.Combine(outputDirectory, $"output_{sheetName}.xlsx");
+                        string sheetFilePath = Path.Combine(outputDirectory, $"output_{sheetName.SheetName}.xlsx");
                         using (var sheetWorkbook = new XLWorkbook(sheetFilePath))
                         {
                             var worksheet = sheetWorkbook.Worksheet(1); // Get the first worksheet
-                            worksheet.CopyTo(combinedWorkbook, sheetName); //Copy to the combined workbook
+                            worksheet.CopyTo(combinedWorkbook, sheetName.SheetName); //Copy to the combined workbook
                         }
                     }
 
@@ -501,154 +542,118 @@ namespace TimeCollect.ViewModels
 
         private void SaveCredentials()
         {
-            SecureString secureClientSecret = ClientSecret;
-
-            // Convert SecureString to plain string
-            IntPtr unmanagedString = IntPtr.Zero;
-            string plainTextClientSecret = null;
-
-            try
+            if (File.Exists(_credentialsPath))
             {
-                unmanagedString = Marshal.SecureStringToGlobalAllocUnicode(secureClientSecret);
-                plainTextClientSecret = Marshal.PtrToStringUni(unmanagedString);
-
-
                 var googleCredentials = new GoogleCredentials
                 {
                     GoogleClientId = ClientId,
                     GoogleProjectId = ProjectId,
-                    GoogleClientSecret = plainTextClientSecret,
+                    GoogleClientSecret = ClientSecret
                 };
 
-                var secrets = new
-                {
-                    installed = new
-                    {
-                        client_id = googleCredentials.GoogleClientId,
-                        project_id = googleCredentials.GoogleProjectId,
-                        auth_uri = "https://accounts.google.com/o/oauth2/auth",
-                        token_uri = "https://oauth2.googleapis.com/token",
-                        auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs",
-                        client_secret = googleCredentials.GoogleClientSecret,
-                        redirect_uris = new[] { "http://localhost" }
-                    }
-                };
 
-                string json = JsonConvert.SerializeObject(secrets, Formatting.Indented);
                 string googleJson = JsonConvert.SerializeObject(googleCredentials, Formatting.Indented);
-                string appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-                string filepath = Path.Combine(appDataPath, "TimeCollect", "credentials.json");
-                string googlePath = Path.Combine(appDataPath, "TimeCollect", "googlecredentials.json");
 
-                Directory.CreateDirectory(Path.GetDirectoryName(filepath));
-                Directory.CreateDirectory(Path.GetDirectoryName(googlePath));
+                Directory.CreateDirectory(Path.GetDirectoryName(_googleCredentialsPath));
 
-                File.WriteAllText(filepath, json);
-                File.WriteAllText(googlePath, googleJson);
+                File.WriteAllText(_googleCredentialsPath, googleJson);
 
                 MessageBox.Show("Credentials saved successfully", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            finally
-            {
-                Marshal.ZeroFreeGlobalAllocUnicode(unmanagedString);
 
-                if (plainTextClientSecret != null)
-                {
-                    plainTextClientSecret = "null";
-                    Console.WriteLine(plainTextClientSecret);
-                    // Consider using garbage collector method
-                }
             }
+
+
         }
 
         public void LoadCredentials()
         {
-            if (File.Exists(_googleCredentialsPath))
+            if (!File.Exists(_credentialsPath))
+            {
+                MessageBox.Show("Please provide GCP credentials json", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            try
+            {
+                string jsonData = File.ReadAllText(_credentialsPath);
+                JObject json = JObject.Parse(jsonData);
+                JObject installedObject = (JObject)json["installed"];
+
+                ClientId = installedObject["client_id"].ToString();
+                ProjectId = installedObject["project_id"].ToString();
+                ClientSecret = installedObject["client_secret"].ToString();
+            }
+            catch (Exception ex)
+            {
+                // Handle exceptions (e.g., log, rethrow, or display a user-friendly message)
+                Console.WriteLine($"Error loading credentials: {ex.Message}");
+            }
+        }
+
+
+        private void SaveDatabaseSettings()
+        {
+            var settings = new DatabaseSettings
+            {
+                Host = DatabaseHost,
+                Database = DatabaseName,
+                Username = DatabaseUsername,
+                Password = DatabasePassword,
+                Port = DatabasePort
+            };
+
+            string json = JsonConvert.SerializeObject(settings, Formatting.Indented);
+            Directory.CreateDirectory(Path.GetDirectoryName(_databaseSettingsPath));
+            File.WriteAllText(_databaseSettingsPath, json);
+
+            MessageBox.Show("Database settings saved succesfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void SaveSheetNames()
+        {
+            try
+            {
+                string jsonData = JsonConvert.SerializeObject(SheetNames);
+                Directory.CreateDirectory(Path.GetDirectoryName(_sheetNamesFilePath));
+                File.WriteAllText(_sheetNamesFilePath, jsonData);
+
+                MessageBox.Show("Sheet name settings successfully!", "Sucess", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error saving sheet name data: {ex.Message}");
+            }
+
+        }
+
+        private void LoadSheetNamesData()
+        {
             {
                 try
                 {
-                    string json = File.ReadAllText(_googleCredentialsPath);
-                    var secrets = JsonConvert.DeserializeObject<GoogleCredentials>(json);
-
-                    ClientId = secrets.GoogleClientId;
-                    ProjectId = secrets.GoogleProjectId;
-
-                    // Handle ClientSecret as SecureString
-                    ClientSecret = ConvertToSecureString(secrets.GoogleClientSecret);
+                    string json = File.ReadAllText(_sheetNamesFilePath);
+                    var sheetNames = JsonConvert.DeserializeObject<ObservableCollection<SheetNamesList>>(json);
+                    foreach (var sheetName in sheetNames)
+                    {
+                        SheetNames.Add(sheetName);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    //Handle exceptions
-                    Console.WriteLine($"Error loading credentials: {ex.Message}");
+                    Console.WriteLine($"Error loading Sheet Names: {ex.Message}");
                 }
             }
         }
 
-        private SecureString ConvertToSecureString(string plaintText)
-        {
-            if (plaintText == null)
-                throw new ArgumentNullException(nameof(plaintText));
-
-            var secureString = new SecureString();
-            foreach (char c in plaintText)
-            {
-                secureString.AppendChar(c);
-            }
-            secureString.MakeReadOnly();
-            return secureString;
-        }
-
+        /// <summary>
+        /// PropertyChanged handler
+        /// </summary>
         public event PropertyChangedEventHandler PropertyChanged;
 
         protected virtual void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
-
-        private void SaveDatabaseSettings()
-        {
-            SecureString securePassword = DatabasePassword;
-
-            //Convert SecureString to plain string (in a secure context)
-            IntPtr unmanagedString = IntPtr.Zero;
-            string plainTextPassword = null; // just to initialize here
-
-            try
-            {
-                unmanagedString = Marshal.SecureStringToGlobalAllocUnicode(securePassword);
-                plainTextPassword = Marshal.PtrToStringUni(unmanagedString);
-
-
-                var settings = new DatabaseSettings
-                {
-                    Host = DatabaseHost,
-                    Database = DatabaseName,
-                    Username = DatabaseUsername,
-                    Password = plainTextPassword, // Use the plain text version
-                    Port = DatabasePort
-                };
-
-                string json = JsonConvert.SerializeObject(settings, Formatting.Indented);
-                Directory.CreateDirectory(Path.GetDirectoryName(_databaseSettingsPath));
-                File.WriteAllText(_databaseSettingsPath, json);
-
-                MessageBox.Show("Database settings saved succesfully!", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-            finally
-            {
-                // zero out and free the unmanaged memory
-                Marshal.ZeroFreeGlobalAllocUnicode(unmanagedString);
-
-                // Important: clear the plain text password
-                if (plainTextPassword != null)
-                {
-                    plainTextPassword = "null";
-                    Console.WriteLine(plainTextPassword);
-                }
-            }
-        }
-
     }
-
 }
 

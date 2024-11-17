@@ -95,7 +95,6 @@
     </ApplicationDefinition>
     <Compile Include="Converters\BoolToIsRunEnabledConverter.cs" />
     <Compile Include="Converters\BoolToVisibilityConverter.cs" />
-    <Compile Include="Converters\SheetNamesConverter.cs" />
     <Compile Include="Helpers\DateHelper.cs" />
     <Compile Include="Helpers\DateTimeHelper.cs" />
     <Compile Include="Helpers\ExcelHelper.cs" />
@@ -103,6 +102,8 @@
       <DependentUpon>LoadingIndicator.xaml</DependentUpon>
     </Compile>
     <Compile Include="Commands\RelayCommand.cs" />
+    <Compile Include="Helpers\PasswordBoxHelper.cs" />
+    <Compile Include="Helpers\WeekTypeHelper.cs" />
     <Compile Include="Models\DatabaseSettings.cs" />
     <Compile Include="Models\GoogleCredentials.cs" />
     <Compile Include="Models\SheetNamesList.cs" />

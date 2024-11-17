@@ -1,23 +1,17 @@
 ﻿using System;
-using System.Globalization;
 
 namespace TimeCollect.Helpers
 {
     public static class DateHelper
     {
-        public static string IsActual(string dateString)
+        public static string IsActual(int year, int month, int day)
         {
-            // Use the correct format string for yyyy-M-d
-            if (DateTime.TryParseExact(
-                dateString,
-                "yyyy-M-d",
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.None,
-                out DateTime date))
+            try
             {
+                DateTime date = new DateTime(year, month, day);
                 return date < DateTime.Today ? "Y" : "N";
             }
-            else
+            catch (ArgumentOutOfRangeException)
             {
                 return "Invalid Date";
             }

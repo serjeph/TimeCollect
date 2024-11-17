@@ -8,9 +8,11 @@
         xmlns:controls="clr-namespace:TimeCollect.Controls"
         xmlns:validationRules="clr-namespace:TimeCollect.ValidationRules"
         xmlns:viewModels="clr-namespace:TimeCollect.ViewModels"
+        xmlns:helpers="clr-namespace:TimeCollect.Helpers"
+        xmlns:models="clr-namespace:TimeCollect.Models"
         mc:Ignorable="d"
-        Title="BPG TimeCollect" Height="450" Width="800"
-        MinHeight="1080" MinWidth="1300"
+        Title="BPG TimeCollect 2024" Height="450" Width="800"
+        MinHeight="900" MinWidth="1500"
         Closing="Window_Closing"
         Icon="src\timecollect.ico">
     <Window.Resources>
@@ -104,7 +106,6 @@
         </Style>
         <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
         <converters:BoolToIsRunEnabledConverter x:Key="BoolToIsRunEnabledConverter"/>
-        <converters:SheetNamesConverter x:Key="SheetNamesConverter"/>
     </Window.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
@@ -120,7 +121,7 @@
         </Grid.RowDefinitions>
 
         <TabControl>
-            <TabItem Header="Data">
+            <TabItem Header="Employee Data">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*"/>
@@ -131,6 +132,11 @@
                     </Grid.RowDefinitions>
 
                     <DataGrid x:Name="employeesDataGrid" Grid.Row="0" AutoGenerateColumns="False" ItemsSource="{Binding Employees}" IsReadOnly="False">
+                        <DataGrid.CellStyle>
+                            <Style TargetType="DataGridCell">
+                                <Setter Property="HorizontalAlignment" Value="Center" />
+                            </Style>
+                        </DataGrid.CellStyle>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="Employee ID" Binding="{Binding EmployeeId}" Width="*"/>
                             <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="2*">
@@ -150,6 +156,7 @@
                                 </DataGridTextColumn.EditingElementStyle>
                             </DataGridTextColumn>
                             <DataGridTextColumn Header="Nickname" Binding="{Binding Nickname}" Width="*" />
+                            <DataGridTextColumn Header="Team" Binding="{Binding Team}" Width="*" />
                             <DataGridTextColumn Header="Spreadsheet ID" Binding="{Binding SpreadsheetId}" Width="2*"/>
                         </DataGrid.Columns>
                     </DataGrid>
@@ -167,7 +174,8 @@
                              VerticalScrollBarVisibility="Auto" Margin="10" Height="200" 
                              Text="{Binding LogMessages, UpdateSourceTrigger=PropertyChanged}"
                              TextChanged="LogTextBox_TextChanged"/>
-                    
+                    <Button x:Name="exportLogButton" Content="Export Log" Command="{Binding ExportLogCommand}"
+                            HorizontalAlignment="Right" Margin="10,5" Grid.Row="3"/>
                     <Button x:Name="clearLogButton" Grid.Row="3" Grid.ColumnSpan="1" Content="Clear Log" Click="ClearLogButton_Click" Height="35" Width="100" HorizontalAlignment="Right" />
                 </Grid>
             </TabItem>
@@ -178,33 +186,37 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="300"/>
-                        <ColumnDefinition Width="500"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <DataGrid x:Name="weekTypeDataGrid" ItemsSource="{Binding WeekTypes}" AutoGenerateColumns="False">
+                    <DataGrid x:Name="weekTypeDataGrid" ItemsSource="{Binding WeekTypes}" AutoGenerateColumns="False" IsReadOnly="False" MinColumnWidth="100" Grid.ColumnSpan="1">
                         <DataGrid.CellStyle>
                             <Style TargetType="DataGridCell">
                                 <Setter Property="HorizontalAlignment" Value="Center" />
                             </Style>
                         </DataGrid.CellStyle>
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Week Number" Binding="{Binding WeekNumber}" />
-                            <DataGridTextColumn Header="Week Type" Binding="{Binding WeekTypeName}" />
+                            <DataGridTextColumn Header="Week Start" Binding="{Binding DateStart, StringFormat={}{0:yyyy/MM/dd}}"  Width="3*"/>
+                            <DataGridTextColumn Header="Week End" Binding="{Binding DateEnd, StringFormat={}{0:yyyy/MM/dd}}"  Width="3*"/>
+                            <DataGridTextColumn Header="Week Name" Binding="{Binding WeekName}" Width="3*"/>
+                            <DataGridTextColumn Header="Week Type" Binding="{Binding WeekTypeName}" Width="2*"/>
                         </DataGrid.Columns>
                     </DataGrid>
-                    <Button x:Name="saveWeekTypeButton" Grid.Row="1" Content="Save"
+                    
+                    <Button x:Name="saveWeekTypeButton" Grid.Row="1" Content="Save" Grid.ColumnSpan="1"
                             Command="{Binding SaveWeekTypeCommand}" HorizontalAlignment="Left" Margin="10,5" Height="35" Width="100" VerticalAlignment="Top"/>
+
+                    <StackPanel Orientation="Vertical" Margin="10" Grid.Column="1">
+                        <TextBlock Text="Set Year starting date."/>
+                        <TextBox Text="{Binding YearStartDate, StringFormat={}{0:yyyy/MM/dd}, UpdateSourceTrigger=LostFocus}" Margin="5" /> 
+                        <Button x:Name="reloadWeekTypeButton" Grid.Row="0" Grid.Column="1" Content="Reload Week Types"
+                            Command="{Binding ReloadWeekTypeCommand}" HorizontalAlignment="Left" Margin="10,5" Height="35" Width="120" VerticalAlignment="Top" />
+
+                    </StackPanel>
+                    
                 </Grid>
             </TabItem>
-            
-            
-            
-            
-            
-            
-            
-            
-            
             <TabItem Header="Settings">
                 <StackPanel Orientation="Vertical" Margin="10">
                     <TextBlock Text="Google Cloud Client ID:"/>
@@ -215,7 +227,10 @@
 
                     <TextBlock Text="Google Cloud Client Secret:" />
                     
-                    <PasswordBox x:Name="clientSecretPasswordBox" Margin="5" PasswordChar="*" Password="Hidden"/>
+                    <PasswordBox 
+                        helpers:PasswordBoxHelper.Password="{Binding ClientSecret, UpdateSourceTrigger=PropertyChanged}" 
+                                 Margin="10,5" PasswordChar="*"/>
+                    
 
                     <Button x:Name="saveCredentialsButton" Content="Save Credentials" Margin="10,5" 
                             Command="{Binding SaveCredentialsCommand}" HorizontalAlignment="Left"
@@ -234,7 +249,9 @@
                     <TextBox Text="{Binding DatabaseUsername, UpdateSourceTrigger=PropertyChanged}" Margin="5"/>
 
                     <TextBlock Text="Password:" />
-                    <PasswordBox x:Name="databasePasswordBox" Margin="5" PasswordChar="*" Password="Hidden"/>
+                    <PasswordBox 
+                        helpers:PasswordBoxHelper.Password="{Binding DatabasePassword, UpdateSourceTrigger=PropertyChanged}" 
+                                 Margin="10,5" PasswordChar="*" />
 
                     <TextBlock Text="Port" />
                     <TextBox Text="{Binding DatabasePort, UpdateSourceTrigger=PropertyChanged}" Margin="5"/>
@@ -247,22 +264,31 @@
 
                     <TextBlock Text="Output Directory:" />
                     <TextBox  Text="{Binding OutputDirectory, UpdateSourceTrigger=PropertyChanged}" Margin="5"/>
-
                 </StackPanel>
             </TabItem>
             <TabItem Header="Sheet Names">
-                <StackPanel Orientation="Vertical" Margin="10" VerticalAlignment="Top">
-                    <TextBlock Text="Provide sheetnames separated by comma." HorizontalAlignment="Left"/>
-                    <TextBox Text="{Binding SheetNamesForUI, Mode=TwoWay}" Height="35" VerticalAlignment="Top" Margin="5"/>
-                </StackPanel>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="4*" />
+                    </Grid.RowDefinitions>
+                        <DataGrid x:Name="sheetNamesDataGrid" ItemsSource="{Binding SheetNames}" AutoGenerateColumns="False" IsReadOnly="False" MaxColumnWidth="200" HorizontalContentAlignment="Center">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Sheet Name" Binding="{Binding SheetName}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <Button x:Name="saveSheetNamesButton" Grid.Row="1" Content="Save" Height="35" Width="100"
+                            Command="{Binding SaveSheetNamesCommand}" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="10,5" />
+                    </Grid>
             </TabItem>
             <TabItem Header="About">
                 <StackPanel Orientation="Vertical" Margin="10" VerticalAlignment="Center">
-                    <TextBlock Text="TimeCollect" FontWeight="Bold" FontSize="20" HorizontalAlignment="Center"/>
-                    <TextBlock Text="Version 1.0" HorizontalAlignment="Center"/>
-                    <TextBlock Text="for BPG, by BPG" HorizontalAlignment="Center"/>
-                    <TextBlock Text="Developed by: jepmanzanillo" Margin="0,10,0,0" HorizontalAlignment="Center"/>
-                    <TextBlock Text="Contact: j.manzanillo@icloud.com" HorizontalAlignment="Center"/>
+                    <TextBlock Text="TimeCollect" FontWeight="Bold" FontSize="30" HorizontalAlignment="Center"/>
+                    <TextBlock Text="Version 1.0" HorizontalAlignment="Center" FontSize="20"/>
+                    <TextBlock Text="a timesheet collector tool for BPG" HorizontalAlignment="Center" FontSize="20"/>
+                    <TextBlock Text="Developed by: jeph.dev" Margin="0,10,0,0" HorizontalAlignment="Center" FontSize="20"/>
+                    <TextBlock Text="Contact: jeph.dev@icloud.com" HorizontalAlignment="Center" FontSize="20"/>
                 </StackPanel>
             </TabItem>
         </TabControl>
